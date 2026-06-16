@@ -7,6 +7,10 @@ use App\Models\Sale;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 use Carbon\Carbon;
+use App\Models\Rescission;
+use App\Models\Lot;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class RescissionController extends Controller
 {
@@ -183,7 +187,66 @@ class RescissionController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'sale_id'                => 'required|exists:sales,id',
+            'rescission_date'        => 'required|date',
+            'reason'                 => 'required|string|max:255',
+            'overdue_installments'   => 'required|integer|min:0',
+            'amount_paid'            => 'required|numeric|min:0',
+            'penalty_amount'         => 'nullable|numeric|min:0',
+            'observation'            => 'nullable|string|max:1000',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+
+            $sale = Sale::with('lot')->findOrFail($request->sale_id);
+
+            // Evitar doble rescisión
+            if ($sale->status == 'rescindido') {
+                return response()->json([
+                    'message' => 'Esta venta ya fue rescindida.'
+                ], 422);
+            }
+
+            // Registrar rescisión
+            Rescission::create([
+                'sale_id'              => $sale->id,
+                'rescission_date'      => $request->rescission_date,
+                'reason'               => $request->reason,
+                'overdue_installments' => $request->overdue_installments,
+                'amount_paid'          => $request->amount_paid,
+                'penalty_amount'       => $request->penalty_amount ?? 0,
+                'observation'          => $request->observation,
+                'user_id'              => Auth::id(),
+            ]);
+
+            // Cambiar estado de la venta
+            $sale->status = 'rescindido';
+            $sale->save();
+
+            // Liberar el lote
+            if ($sale->lot) {
+                $sale->lot->status = 'disponible';
+                $sale->lot->save();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'La rescisión fue registrada correctamente.'
+            ]);
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Ocurrió un error al registrar la rescisión.',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function create()
