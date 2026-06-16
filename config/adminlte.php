@@ -344,7 +344,7 @@ return [
             ],
         ],
         ['header' => 'Configuración Principal'],
-           [
+        [
             'text' => 'Configuración',
             'icon' => 'fas fa-cogs',
             'submenu' => [
@@ -361,7 +361,7 @@ return [
                     'url' => 'admin/banks',
                     "can" => 'admin.users.index'
                 ],
-                   [
+                [
                     'text' => 'Mora',
                     'icon_color' => 'success',
                     'url' => 'admin/lateFeeSettings',
@@ -377,7 +377,8 @@ return [
 
             ],
         ],
-  
+
+
         [
             'text' => 'Proyectos',
             'url' => 'admin/projects',
@@ -404,30 +405,43 @@ return [
             'label_color' => 'success',
         ],
 
-     
-
         [
             'text' => 'Ventas',
-            'url' => 'admin/sales',
             'icon' => 'fas fa-file-invoice-dollar',
-            'label_color' => 'success',
+            'submenu' => [
+                [
+                    'text' => 'Ventas',
+                    'icon_color' => 'primary',
+                    'url' => 'admin/sales',
+                    "can" => 'admin.roles.index'
+
+                ],
+                [
+                    'text' => 'Pagos',
+                    'icon_color' => 'yellow',
+                    'url' => 'admin/payments',
+                    "can" => 'admin.users.index'
+                ],
+                [
+                    'text' => 'Amortizaciones',
+                    'icon_color' => 'success',
+                    'url' => 'admin/amortizations',
+                    "can" => 'admin.users.index'
+                ],
+                [
+                    'text' => 'Rescisión',
+                    'icon_color' => 'danger',
+                    'url' => 'admin/rescissions',
+                    "can" => 'admin.users.index'
+                ],
+
+
+            ],
         ],
 
+
+
         [
-            'text' => 'Pagos',
-            'url' => 'admin/payments',
-            'icon' => 'fas fa-money-bill-wave',
-            'label_color' => 'success',
-        ],
-        [
-            'text' => ' Amortizaciones',
-            'url' => 'admin/amortizations',
-            'icon' => 'fas fa-chart-line',
-            'label_color' => 'success',
-        ],
-  
-   
-           [
             'text' => ' Reportes',
             'url' => 'admin/reports',
             'icon' => 'fas fa-chart-pie',
@@ -443,10 +457,10 @@ return [
             'label' => 4,
             'label_color' => 'success',
         ], */
-        
-    
 
-   
+
+
+
     ],
 
     /*
