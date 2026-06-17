@@ -18,20 +18,21 @@ class UserController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('can:admin.users.index')->only('index','list'); 
+        $this->middleware('can:admin.users.index')->only('index', 'list');
         $this->middleware('can:admin.users.store')->only('store');
         $this->middleware('can:admin.users.update')->only('update');
         $this->middleware('can:admin.users.destroy')->only('destroy');
     }
     public function index()
     {
-        $roles =Role::all();
-      
-        return view('admin.users.index',compact('roles'));
+        $roles = Role::all();
+
+        return view('admin.users.index', compact('roles'));
     }
 
-    public function list(){
-        $users = User::where('status', '!=', -1)->orderBy('id','desc')->get();
+    public function list()
+    {
+        $users = User::where('status', '!=', -1)->orderBy('id', 'desc')->get();
 
         ////si te sale un erro ejecunta en la rais del proyecto esto   composer require yajra/laravel-datatables-oracle 
         return DataTables::of($users)
@@ -41,13 +42,13 @@ class UserController extends Controller
                     ? '<span class="badge badge-success">Activo</span>'
                     : '<span class="badge badge-danger">Inactivo</span>';
             })
-            ->addColumn('acciones',function($user){
+            ->addColumn('acciones', function ($user) {
                 $statusOriginal = $user->status;
                 $rutaFoto = Storage::url($user->photo);
-                 $rol = $user->roles->first()?->id ?? ''; 
-                return view('admin.users.partials.acciones', compact('user','statusOriginal','rutaFoto','rol'))->render();
+                $rol = $user->roles->first()?->id ?? '';
+                return view('admin.users.partials.acciones', compact('user', 'statusOriginal', 'rutaFoto', 'rol'))->render();
             })
-            ->rawColumns(['status','acciones'])
+            ->rawColumns(['status', 'acciones'])
             ->make(true);
     }
     public function create()
@@ -61,29 +62,28 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'dni'=> 'required|min:8|max:8|unique:users,dni',
-            'name'=> 'required|min:3|max:50',
-            'lastname'=> 'required|min:3|max:50',
-            'email'=> 'required|email|unique:users,email',
-            'password'=> 'required|min:6|max:20',
-            'password_confirmation'=> 'required|same:password',
-            'phone'=> 'nullable|min:9|max:15',
-            'address'=> 'nullable|min:3|max:150',
-            'image'=> 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'status'=> 'required',
+            'dni' => 'required|min:8|max:8|unique:users,dni',
+            'name' => 'required|min:3|max:50',
+            'lastname' => 'required|min:3|max:50',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6|max:20',
+            'password_confirmation' => 'required|same:password',
+            'phone' => 'nullable|min:9|max:15',
+            'address' => 'nullable|min:3|max:150',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'status' => 'required',
 
         ]);
 
-        if ($request->hasFile('image')) {         
-             $data['photo'] = $request->file('image')->store('users');
-          }
-        $user=User::create($data);
+        if ($request->hasFile('image')) {
+            $data['photo'] = $request->file('image')->store('users', 'public');
+        }
+        $user = User::create($data);
 
         $user->roles()->sync([$request->input('role')]);
 
 
         return response()->json(['message' => 'Vehículo registrado correctamente']);
-        
     }
 
     /**
@@ -109,34 +109,34 @@ class UserController extends Controller
     {
         //
         $data = $request->validate([
-            'dni'=> 'required|min:8|max:8|unique:users,dni,'.$user->id,
-            'name'=> 'required|min:3|max:50',
-            'lastname'=> 'required|min:3|max:50',
-            'email'=> 'required|email|unique:users,email,'.$user->id,
-            'phone'=> 'nullable|min:9|max:15',
-            'address'=> 'nullable|min:3|max:150',
-            'image'=> 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'status'=> 'required',
+            'dni' => 'required|min:8|max:8|unique:users,dni,' . $user->id,
+            'name' => 'required|min:3|max:50',
+            'lastname' => 'required|min:3|max:50',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'phone' => 'nullable|min:9|max:15',
+            'address' => 'nullable|min:3|max:150',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'status' => 'required',
 
         ]);
         //VALIDAMOS LA CONTRASEÑA
         if ($request->filled('password')) {
             $request->validate([
-                'password'=> 'required|min:6|max:20',
-                'password_confirmation'=> 'required|same:password',
+                'password' => 'required|min:6|max:20',
+                'password_confirmation' => 'required|same:password',
             ]);
             $data['password'] = Hash::make($request->password);
         }
 
-         if ($request->hasFile('image')) {
-          if($user->photo){
-            Storage::delete($user->photo);
-          }
-            $data['photo'] = $request->file('image')->store('users');  
+        if ($request->hasFile('image')) {
+            if ($user->photo) {
+                Storage::delete($user->photo);
+            }
+            $data['photo'] = $request->file('image')->store('users');
         }
 
-         $user->update($data);
-         $role = Role::findById($request->input('role'));
+        $user->update($data);
+        $role = Role::findById($request->input('role'));
         $user->syncRoles([$role->name]);
 
         return response()->json(['message' => 'Usuario actualizado correctamente']);
