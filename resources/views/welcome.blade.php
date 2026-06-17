@@ -506,9 +506,7 @@
                         <a href="{{ url('/home') }}" class="primary">Entrar al sistema</a>
                     @else
                         <a href="{{ route('login') }}">Iniciar sesión</a>
-                        @if (Route::has('register'))
-                            <a href="{{ route('register') }}" class="primary">Crear cuenta</a>
-                        @endif
+                       
                     @endauth
                 </div>
             @endif
