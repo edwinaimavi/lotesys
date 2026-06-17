@@ -132,7 +132,7 @@ class UserController extends Controller
             if ($user->photo) {
                 Storage::delete($user->photo);
             }
-            $data['photo'] = $request->file('image')->store('users');
+            $data['photo'] = $request->file('image')->store('users', 'public');
         }
 
         $user->update($data);
