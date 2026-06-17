@@ -3,18 +3,15 @@
 use App\Http\Controllers\Admin\AmortizationController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\BlockController;
-use App\Http\Controllers\Admin\BranchController;
-use App\Http\Controllers\Admin\ClientContactController;
-use App\Http\Controllers\Admin\ClientController;
+
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\CustomerController;
-use App\Http\Controllers\Admin\GuarantorController;
+
 use App\Http\Controllers\Admin\HolidayController;
+
 use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\LateFeeSettingController;
-use App\Http\Controllers\Admin\LoanController;
-use App\Http\Controllers\Admin\LoanDisbursementController;
-use App\Http\Controllers\Admin\LoanPaymentController;
+
 use App\Http\Controllers\Admin\LotController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ProjectController;
@@ -24,6 +21,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\RescissionController;
 use Illuminate\Support\Facades\Route;
+
 
 
 //Rutas para la gestión de usuarios en el panel de administración|
@@ -324,3 +322,6 @@ Route::get(
     [RescissionController::class, 'show']
 )->name('rescissions.show');
 Route::resource('rescissions', RescissionController::class)->except(['create']);
+
+
+//RUTAS PARA HOME 
