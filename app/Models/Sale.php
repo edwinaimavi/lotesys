@@ -20,6 +20,10 @@ class Sale extends Model
         'balance_finance',
 
         'installments_count',
+
+        'payment_mode',
+        'custom_payment',
+        
         'monthly_payment',
         'interest_rate',
 
@@ -87,7 +91,4 @@ class Sale extends Model
     {
         return $this->hasMany(\App\Models\Payment::class);
     }
-
-
-
 }

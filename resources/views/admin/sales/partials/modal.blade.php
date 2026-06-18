@@ -368,7 +368,55 @@
                                     </div>
 
                                 </div>
+                                <!-- MODO DE FINANCIAMIENTO -->
+                                <div class="form-row">
 
+                                    <div class="form-group col-md-4">
+
+                                        <label class="small font-weight-bold text-secondary">
+
+                                            MODO DE CÁLCULO
+                                            <span class="text-danger">*</span>
+
+                                        </label>
+
+                                        <select id="payment_mode" name="payment_mode"
+                                            class="form-control form-control-sm">
+
+                                            <option value="automatico">
+                                                Automático por cuotas
+                                            </option>
+
+                                            <option value="personalizado">
+                                                Personalizado por monto mensual
+                                            </option>
+
+                                        </select>
+
+                                    </div>
+
+                                    <div class="form-group col-md-4 d-none" id="custom_payment_container">
+
+                                        <label for="custom_payment" class="small font-weight-bold text-secondary">
+
+                                            CUOTA DESEADA
+                                            <span class="text-danger">*</span>
+
+                                        </label>
+
+                                        <input type="number" step="0.01" min="0" id="custom_payment"
+                                            name="custom_payment" class="form-control form-control-sm"
+                                            placeholder="Ej: 500.00">
+
+                                        <small class="text-muted">
+
+                                            El sistema generará el cronograma usando este monto.
+
+                                        </small>
+
+                                    </div>
+
+                                </div>
                                 <!-- FILA 4 -->
                                 <div class="form-row">
 
@@ -417,6 +465,12 @@
                                         <input type="number" step="0.01" min="0" id="monthly_payment"
                                             name="monthly_payment" class="form-control form-control-sm" readonly>
 
+                                        <small id="monthly_payment_help" class="text-muted d-block mt-1">
+
+                                            Calculado automáticamente
+
+                                        </small>
+
                                         <span class="invalid-feedback" id="monthly_payment-error"></span>
 
                                     </div>
@@ -452,6 +506,15 @@
                                         <span class="invalid-feedback" id="payment_day-error"></span>
 
                                     </div>
+
+                                </div>
+                                <div id="customPaymentAlert" class="alert alert-warning d-none mt-2">
+
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+
+                                    En modo personalizado el sistema generará todas las cuotas
+                                    con el monto indicado y la última cuota se ajustará con el
+                                    saldo restante.
 
                                 </div>
 

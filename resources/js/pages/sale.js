@@ -72,15 +72,41 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function calculateMonthlyPayment() {
 
+        let mode = $('#payment_mode').val();
+
         let balance = parseFloat($('#balance_finance').val()) || 0;
 
         let installments = parseInt($('#installments_count').val()) || 0;
 
-        if (balance > 0 && installments > 0) {
+        // ==========================================
+        // AUTOMÁTICO
+        // ==========================================
 
-            let monthly = balance / installments;
+        if (mode === 'automatico') {
 
-            $('#monthly_payment').val(monthly.toFixed(2));
+            if (balance > 0 && installments > 0) {
+
+                let monthly = balance / installments;
+
+                $('#monthly_payment').val(
+                    monthly.toFixed(2)
+                );
+            }
+
+        }
+
+        // ==========================================
+        // PERSONALIZADO
+        // ==========================================
+
+        if (mode === 'personalizado') {
+
+            let customPayment =
+                parseFloat($('#custom_payment').val()) || 0;
+
+            $('#monthly_payment').val(
+                customPayment.toFixed(2)
+            );
 
         }
 
@@ -103,6 +129,57 @@ document.addEventListener("DOMContentLoaded", function () {
         calculateMonthlyPayment();
 
     });
+
+    // ==========================================
+    // CAMBIAR MODO
+    // ==========================================
+
+    $('#payment_mode').on('change', function () {
+
+        const mode = $(this).val();
+
+        if (mode === 'personalizado') {
+
+            $('#custom_payment_container')
+                .removeClass('d-none');
+
+            $('#customPaymentAlert')
+                .removeClass('d-none');
+
+            $('#monthly_payment_help').html(
+                'Monto personalizado'
+            );
+
+        } else {
+
+            $('#custom_payment_container')
+                .addClass('d-none');
+
+            $('#customPaymentAlert')
+                .addClass('d-none');
+
+            $('#monthly_payment_help').html(
+                'Calculado automáticamente'
+            );
+
+        }
+
+        calculateMonthlyPayment();
+
+    });
+
+    // ==========================================
+    // CAMBIAR CUOTA PERSONALIZADA
+    // ==========================================
+
+    $('#custom_payment').on(
+        'keyup change',
+        function () {
+
+            calculateMonthlyPayment();
+
+        }
+    );
 
     // =========================================================
     // ABRIR MODAL NUEVA VENTA
@@ -342,6 +419,20 @@ document.addEventListener("DOMContentLoaded", function () {
         const $form = $('#saleForm');
 
         $form[0].reset();
+
+        $('#payment_mode').val('automatico');
+
+        $('#custom_payment').val('');
+
+        $('#custom_payment_container')
+            .addClass('d-none');
+
+        $('#customPaymentAlert')
+            .addClass('d-none');
+
+        $('#monthly_payment_help').html(
+            'Calculado automáticamente'
+        );
 
         $form.removeAttr('data-id');
 

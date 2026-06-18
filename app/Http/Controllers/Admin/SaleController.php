@@ -226,6 +226,17 @@ class SaleController extends Controller
                 'min:1'
             ],
 
+            'payment_mode' => [
+                'required',
+                'in:automatico,personalizado'
+            ],
+
+            'custom_payment' => [
+                'nullable',
+                'numeric',
+                'min:1'
+            ],
+
             'monthly_payment' => [
                 'required',
                 'numeric',
@@ -451,6 +462,17 @@ class SaleController extends Controller
             'installments_count' => [
                 'required',
                 'integer',
+                'min:1'
+            ],
+
+            'payment_mode' => [
+                'required',
+                'in:automatico,personalizado'
+            ],
+
+            'custom_payment' => [
+                'nullable',
+                'numeric',
                 'min:1'
             ],
 
@@ -801,35 +823,96 @@ class SaleController extends Controller
         $interes = (float) ($data['interest_rate'] ?? 0);
         $fechaPago = Carbon::parse($data['first_payment_date']);
 
-        $capitalCuota = $saldo / $cuotas;
         $saldoRestante = $saldo;
 
-        for ($i = 1; $i <= $cuotas; $i++) {
+        $paymentMode = $data['payment_mode'] ?? 'automatico';
 
-            $montoInteres = ($saldoRestante * $interes) / 100;
-            $totalCuota = $capitalCuota + $montoInteres;
+        if ($paymentMode === 'personalizado') {
 
-            $saldoRestante -= $capitalCuota;
+            $cuotaPersonalizada = (float) ($data['custom_payment'] ?? 0);
 
-            if ($saldoRestante < 0) {
-                $saldoRestante = 0;
+            if ($cuotaPersonalizada <= 0) {
+                throw new \Exception(
+                    'Debe ingresar una cuota personalizada válida.'
+                );
             }
 
-            PaymentSchedule::create([
-                'sale_id' => $sale->id,
-                'schedule_type' => 'cuota',
-                'installment_number' => $i,
-                'due_date' => $fechaPago->copy()->addMonths($i - 1)->format('Y-m-d'),
-                'installment_amount' => round($totalCuota, 2),
-                'capital' => round($capitalCuota, 2),
-                'interest' => round($montoInteres, 2),
-                'late_fee' => 0,
-                'total_amount' => round($totalCuota, 2),
-                'remaining_balance' => round($saldoRestante, 2),
-                'status' => 'pendiente',
-                'created_by' => $createdBy,
-                'updated_by' => $createdBy,
-            ]);
+            for ($i = 1; $i <= $cuotas; $i++) {
+
+                $montoInteres = ($saldoRestante * $interes) / 100;
+
+                if ($i < $cuotas) {
+
+                    $capitalCuota = min(
+                        $cuotaPersonalizada,
+                        $saldoRestante
+                    );
+                } else {
+
+                    // última cuota
+                    $capitalCuota = $saldoRestante;
+                }
+
+                $totalCuota = $capitalCuota + $montoInteres;
+
+                $saldoRestante -= $capitalCuota;
+
+                if ($saldoRestante < 0) {
+                    $saldoRestante = 0;
+                }
+
+                PaymentSchedule::create([
+                    'sale_id' => $sale->id,
+                    'schedule_type' => 'cuota',
+                    'installment_number' => $i,
+                    'due_date' => $fechaPago->copy()
+                        ->addMonths($i - 1)
+                        ->format('Y-m-d'),
+                    'installment_amount' => round($totalCuota, 2),
+                    'capital' => round($capitalCuota, 2),
+                    'interest' => round($montoInteres, 2),
+                    'late_fee' => 0,
+                    'total_amount' => round($totalCuota, 2),
+                    'remaining_balance' => round($saldoRestante, 2),
+                    'status' => 'pendiente',
+                    'created_by' => $createdBy,
+                    'updated_by' => $createdBy,
+                ]);
+            }
+        } else {
+
+            $capitalCuota = $saldo / $cuotas;
+
+            for ($i = 1; $i <= $cuotas; $i++) {
+
+                $montoInteres = ($saldoRestante * $interes) / 100;
+
+                $totalCuota = $capitalCuota + $montoInteres;
+
+                $saldoRestante -= $capitalCuota;
+
+                if ($saldoRestante < 0) {
+                    $saldoRestante = 0;
+                }
+
+                PaymentSchedule::create([
+                    'sale_id' => $sale->id,
+                    'schedule_type' => 'cuota',
+                    'installment_number' => $i,
+                    'due_date' => $fechaPago->copy()
+                        ->addMonths($i - 1)
+                        ->format('Y-m-d'),
+                    'installment_amount' => round($totalCuota, 2),
+                    'capital' => round($capitalCuota, 2),
+                    'interest' => round($montoInteres, 2),
+                    'late_fee' => 0,
+                    'total_amount' => round($totalCuota, 2),
+                    'remaining_balance' => round($saldoRestante, 2),
+                    'status' => 'pendiente',
+                    'created_by' => $createdBy,
+                    'updated_by' => $createdBy,
+                ]);
+            }
         }
     }
 
@@ -840,7 +923,7 @@ class SaleController extends Controller
             return 0;
         }
 
-     /*    if ($schedule->status === 'pagado') {
+        /*    if ($schedule->status === 'pagado') {
             return 0;
         }
  */
