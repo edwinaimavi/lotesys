@@ -374,6 +374,12 @@ class BlockController extends Controller
     /**
      * GENERAR LOTES MASIVOS
      */
+    /**
+     * GENERAR LOTES MASIVOS
+     */
+    /**
+     * GENERAR LOTES MASIVOS
+     */
     public function generateLots(Request $request)
     {
         $request->validate([
@@ -388,40 +394,157 @@ class BlockController extends Controller
 
             'unit_measure' => 'required|string|max:20'
 
+        ], [
+
+            'project_id.required' => 'El proyecto es obligatorio.',
+            'project_id.exists' => 'El proyecto seleccionado no existe.',
+
+            'block_id.required' => 'La manzana es obligatoria.',
+            'block_id.exists' => 'La manzana seleccionada no existe.',
+
+            'quantity.required' => 'La cantidad de lotes es obligatoria.',
+            'quantity.integer' => 'La cantidad debe ser un número entero.',
+            'quantity.min' => 'La cantidad debe ser mayor a cero.',
+
+            'area.required' => 'El área es obligatoria.',
+            'area.numeric' => 'El área debe ser numérica.',
+
+            'unit_measure.required' => 'La unidad de medida es obligatoria.',
+
         ]);
 
         try {
-
-            DB::beginTransaction();
 
             $project = Project::findOrFail($request->project_id);
 
             $block = Block::findOrFail($request->block_id);
 
             // =====================================================
-            // GENERAR INICIALES DEL PROYECTO
+            // VALIDAR QUE LA MANZANA PERTENEZCA AL PROYECTO
             // =====================================================
 
-            $words = explode(' ', strtoupper($project->name));
+            if ((int) $block->project_id !== (int) $project->id) {
 
-            $initials = '';
+                return response()->json([
 
-            foreach ($words as $word) {
+                    'status' => 'error',
 
-                if (!empty($word)) {
+                    'message' => 'La manzana seleccionada no pertenece al proyecto indicado.'
 
-                    $initials .= substr($word, 0, 1);
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            // =====================================================
+            // MANZANA
+            // Ejemplo: MZ A => MZA
+            // =====================================================
+
+            $blockName = strtoupper(trim($block->name));
+
+            $blockName = str_replace(' ', '', $blockName);
+
+            $blockName = preg_replace('/[^A-Z0-9]/', '', $blockName);
+
+            // =====================================================
+            // PREFIJO DEL PROYECTO
+            //
+            // IMPORTANTE:
+            // 1. Si el proyecto ya tiene lotes, reutiliza el prefijo existente.
+            //    Ejemplo: Madrid II ya tiene MIMZB-L21 => seguirá usando MI.
+            //
+            // 2. Si el proyecto no tiene lotes, genera prefijo nuevo.
+            //    Ejemplo: Madrid I => M1
+            //             Madrid II => M2
+            // =====================================================
+
+            $existingPrefix = null;
+
+            $existingProjectCodes = Lot::where('project_id', $project->id)
+                ->whereNotNull('code')
+                ->orderBy('id', 'asc')
+                ->pluck('code');
+
+            foreach ($existingProjectCodes as $existingCode) {
+
+                $existingCode = strtoupper(trim($existingCode));
+
+                /*
+             * Detecta códigos como:
+             * MIMZA-L01   => prefijo MI
+             * MIMZB-L21   => prefijo MI
+             * M1MZA-L01   => prefijo M1
+             * RLPMZA-L01  => prefijo RLP
+             */
+                if (preg_match('/^(.+?)(MZ[A-Z0-9]+)-L[0-9]+$/', $existingCode, $matches)) {
+
+                    $existingPrefix = $matches[1];
+
+                    break;
+                }
+            }
+
+            if ($existingPrefix) {
+
+                $initials = $existingPrefix;
+            } else {
+
+                // =====================================================
+                // GENERAR PREFIJO NUEVO DESDE EL NOMBRE DEL PROYECTO
+                // Madrid I   => M1
+                // Madrid II  => M2
+                // Madrid III => M3
+                // Residencial Las Palmeras => RLP
+                // =====================================================
+
+                $projectName = strtoupper(trim($project->name));
+
+                $projectName = preg_replace('/\s+/', ' ', $projectName);
+
+                $words = explode(' ', $projectName);
+
+                $romanMap = [
+                    'I' => '1',
+                    'II' => '2',
+                    'III' => '3',
+                    'IV' => '4',
+                    'V' => '5',
+                    'VI' => '6',
+                    'VII' => '7',
+                    'VIII' => '8',
+                    'IX' => '9',
+                    'X' => '10',
+                ];
+
+                $initials = '';
+
+                foreach ($words as $word) {
+
+                    $word = trim($word);
+
+                    if ($word === '') {
+                        continue;
+                    }
+
+                    if (isset($romanMap[$word])) {
+
+                        $initials .= $romanMap[$word];
+                    } else {
+
+                        $initials .= substr($word, 0, 1);
+                    }
+                }
+
+                $initials = preg_replace('/[^A-Z0-9]/', '', $initials);
+
+                if ($initials === '') {
+                    $initials = 'P' . $project->id;
                 }
             }
 
             // =====================================================
-            // MANZANA
-            // =====================================================
-
-            $blockName = strtoupper(str_replace(' ', '', $block->name));
-
-            // =====================================================
-            // BUSCAR EXISTENTES
+            // BUSCAR LOTES EXISTENTES DE ESA MISMA MANZANA
             // =====================================================
 
             $existingNumbers = Lot::where('project_id', $project->id)
@@ -429,7 +552,8 @@ class BlockController extends Controller
                 ->pluck('number')
                 ->map(function ($n) {
 
-                    return intval($n);
+                    // Soporta "01", "1", "L01"
+                    return (int) preg_replace('/\D/', '', (string) $n);
                 })
                 ->toArray();
 
@@ -443,7 +567,7 @@ class BlockController extends Controller
 
             for ($i = 1; $i <= $request->quantity; $i++) {
 
-                // YA EXISTE
+                // Si el lote ya existe dentro de esa misma manzana, se omite
                 if (in_array($i, $existingNumbers)) {
 
                     $skipped++;
@@ -453,13 +577,45 @@ class BlockController extends Controller
 
                 $lotNumber = str_pad($i, 2, '0', STR_PAD_LEFT);
 
-                // EJEMPLO:
-                // RLPMZA-L01
-
+                /*
+             * Ejemplos:
+             *
+             * Madrid II existente:
+             * MI + MZB + L21 = MIMZB-L21
+             *
+             * Madrid I nuevo:
+             * M1 + MZA + L01 = M1MZA-L01
+             */
                 $code = $initials
                     . $blockName
                     . '-L'
                     . $lotNumber;
+
+                // =====================================================
+                // VALIDACIÓN EXTRA GLOBAL
+                //
+                // Si el código ya existe en cualquier proyecto,
+                // agregamos el ID del proyecto para evitar choque.
+                // No modifica códigos antiguos.
+                // =====================================================
+
+                if (Lot::where('code', $code)->exists()) {
+
+                    $code = $initials
+                        . 'P'
+                        . $project->id
+                        . $blockName
+                        . '-L'
+                        . $lotNumber;
+                }
+
+                // Si incluso con el ID del proyecto existe, se omite
+                if (Lot::where('code', $code)->exists()) {
+
+                    $skipped++;
+
+                    continue;
+                }
 
                 Lot::create([
 
