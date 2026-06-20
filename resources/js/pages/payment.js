@@ -924,12 +924,24 @@ $(document).on('click', '.generateInvoice', function () {
 
     const paymentId = $(this).data('payment_id');
     const saleId = $(this).data('sale_id');
+
     const amount = parseFloat(
         $(this).data('amount') || 0
     );
 
     const paymentType =
         $(this).data('payment_type') || '';
+
+    // =========================================
+    // LIMPIAR DATOS PREVIOS
+    // =========================================
+
+    $('#invoiceForm')[0].reset();
+
+    $('#company_id').val('');
+    $('#company_name').val('');
+    $('#series').val('');
+    $('#number').val('');
 
     // =========================================
     // IDS
@@ -963,7 +975,7 @@ $(document).on('click', '.generateInvoice', function () {
     );
 
     // =========================================
-    // RESUMEN FINANCIERO (EXONERADO IGV)
+    // RESUMEN FINANCIERO
     // =========================================
 
     $('#subtotal_preview').text(
@@ -985,9 +997,7 @@ $(document).on('click', '.generateInvoice', function () {
     let concept = 'installment';
 
     if (paymentType === 'inicial') {
-
         concept = 'initial_payment';
-
     }
 
     $('#invoice_concept').val(concept);
@@ -997,11 +1007,11 @@ $(document).on('click', '.generateInvoice', function () {
     );
 
     // =========================================
-    // MODAL
+    // CARGAR DATOS
+    // IMPORTANTE:
+    // Primero cliente + empresa,
+    // luego correlativo por empresa.
     // =========================================
-
-
-    loadInvoiceCorrelative();
 
     loadInvoiceCustomerData(saleId);
 
@@ -1011,9 +1021,12 @@ $(document).on('click', '.generateInvoice', function () {
 
 });
 
+
+// =========================================================
+// CAMBIAR CONCEPTO
+// =========================================================
+
 $(document).on('change', '#invoice_concept', function () {
-
-
 
     $('#invoice_concept_preview').text(
         $(this).find('option:selected').text()
@@ -1021,36 +1034,72 @@ $(document).on('change', '#invoice_concept', function () {
 
 });
 
+
+// =========================================================
+// CAMBIAR TIPO DOCUMENTO
+// =========================================================
+
 $(document).on('change', '#document_type', function () {
 
-    let type = $(this).val();
-
-    if (type === 'sale_note') {
-
-        // Ocultar elementos exclusivos de SUNAT
-        $('#legend').closest('.mt-3').hide();
-
-        $('#btnGenerateInvoice')
-            .html('<i class="fas fa-receipt mr-2"></i> Emitir Nota de Venta');
-
-    } else {
-
-        $('#legend').closest('.mt-3').show();
-
-        $('#btnGenerateInvoice')
-            .html('<i class="fas fa-paper-plane mr-2"></i> Emitir Comprobante SUNAT');
-    }
+    applyDocumentTypeUI();
 
     loadInvoiceCorrelative();
 
 });
 
 
+// =========================================================
+// UI SEGÚN TIPO DE DOCUMENTO
+// =========================================================
+
+function applyDocumentTypeUI() {
+
+    let type = $('#document_type').val();
+
+    if (type === 'sale_note') {
+
+        $('#legend').closest('.mt-3').hide();
+
+        $('#btnGenerateInvoice').html(`
+            <i class="fas fa-receipt mr-2"></i>
+            Emitir Nota de Venta
+        `);
+
+    } else {
+
+        $('#legend').closest('.mt-3').show();
+
+        $('#btnGenerateInvoice').html(`
+            <i class="fas fa-paper-plane mr-2"></i>
+            Emitir Comprobante SUNAT
+        `);
+
+    }
+
+}
+
+
+// =========================================================
+// CARGAR CORRELATIVO POR EMPRESA
+// =========================================================
 
 function loadInvoiceCorrelative() {
 
-    const documentType =
-        $('#document_type').val();
+    const documentType = $('#document_type').val();
+
+    const companyId = $('#company_id').val();
+
+    if (!documentType) {
+        $('#series').val('');
+        $('#number').val('');
+        return;
+    }
+
+    if (!companyId) {
+        $('#series').val('');
+        $('#number').val('');
+        return;
+    }
 
     $.ajax({
 
@@ -1059,7 +1108,8 @@ function loadInvoiceCorrelative() {
         type: 'GET',
 
         data: {
-            document_type: documentType
+            document_type: documentType,
+            company_id: companyId
         },
 
         success: function (response) {
@@ -1072,11 +1122,33 @@ function loadInvoiceCorrelative() {
                 response.number
             );
 
+        },
+
+        error: function () {
+
+            $('#series').val('');
+            $('#number').val('');
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo obtener el correlativo del comprobante.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+
         }
 
     });
 
 }
+
+
+// =========================================================
+// CARGAR DATOS DEL CLIENTE Y EMPRESA
+// =========================================================
 
 function loadInvoiceCustomerData(saleId) {
 
@@ -1091,16 +1163,20 @@ function loadInvoiceCustomerData(saleId) {
 
         success: function (response) {
 
+            // =========================================
+            // CLIENTE
+            // =========================================
+
             $('#customer_name').val(
-                response.data.customer_name
+                response.data.customer_name || ''
             );
 
             $('#customer_document').val(
-                response.data.customer_document
+                response.data.customer_document || ''
             );
 
             $('#customer_address').val(
-                response.data.customer_address
+                response.data.customer_address || ''
             );
 
             $('#customer_department').val(
@@ -1120,20 +1196,10 @@ function loadInvoiceCustomerData(saleId) {
             );
 
             // =========================================
-            // DEFINIR AUTOMÁTICAMENTE BOLETA O FACTURA
+            // EMPRESA EMISORA
+            // IMPORTANTE:
+            // ESTO DEBE IR ANTES DE loadInvoiceCorrelative()
             // =========================================
-
-            if (
-                response.data.customer_document_type === 'RUC' ||
-                response.data.customer_document.length === 11
-            ) {
-                $('#document_type').val('invoice');   // Factura
-            } else {
-                $('#document_type').val('receipt');   // Boleta
-            }
-
-            // Recargar serie y correlativo según el tipo
-            loadInvoiceCorrelative();
 
             $('#company_id').val(
                 response.data.company_id || ''
@@ -1142,6 +1208,41 @@ function loadInvoiceCustomerData(saleId) {
             $('#company_name').val(
                 response.data.company_name || ''
             );
+
+            // =========================================
+            // DEFINIR BOLETA O FACTURA
+            // =========================================
+
+            const documentNumber =
+                response.data.customer_document || '';
+
+            const documentType =
+                response.data.customer_document_type || '';
+
+            if (
+                documentType === 'RUC' ||
+                documentNumber.length === 11
+            ) {
+
+                $('#document_type').val('invoice');
+
+            } else {
+
+                $('#document_type').val('receipt');
+
+            }
+
+            // =========================================
+            // ACTUALIZAR BOTÓN / LEYENDA
+            // =========================================
+
+            applyDocumentTypeUI();
+
+            // =========================================
+            // CARGAR CORRELATIVO YA CON EMPRESA
+            // =========================================
+
+            loadInvoiceCorrelative();
 
         },
 
@@ -1156,6 +1257,8 @@ function loadInvoiceCustomerData(saleId) {
             $('#customer_ubigeo').val('');
             $('#company_id').val('');
             $('#company_name').val('');
+            $('#series').val('');
+            $('#number').val('');
 
             Swal.fire({
 
@@ -1176,6 +1279,11 @@ function loadInvoiceCustomerData(saleId) {
 
 }
 
+
+// =========================================================
+// CARGAR DESCRIPCIÓN DEL COMPROBANTE
+// =========================================================
+
 function loadInvoiceDescription(paymentId) {
 
     const url = window.routes.invoicePaymentDescription
@@ -1190,11 +1298,11 @@ function loadInvoiceDescription(paymentId) {
         success: function (response) {
 
             $('#description').val(
-                response.data.description
+                response.data.description || ''
             );
 
             $('#legend').val(
-                response.data.legend
+                response.data.legend || ''
             );
 
         },
@@ -1210,73 +1318,180 @@ function loadInvoiceDescription(paymentId) {
 
 }
 
+
 // =========================================================
-// GUARDAR COMPROBANTE
+// GUARDAR / EMITIR COMPROBANTE
 // =========================================================
 
 $(document).on('click', '#btnGenerateInvoice', function () {
+
     const btn = $(this);
 
+    const documentType = $('#document_type').val();
+
+    const companyId = $('#company_id').val();
+
+    const series = $('#series').val();
+
+    const number = $('#number').val();
+
+    if (!companyId) {
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Empresa no detectada',
+            text: 'No se pudo identificar la empresa emisora del comprobante.'
+        });
+
+        return;
+    }
+
+    if (!series || !number) {
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Correlativo incompleto',
+            text: 'No se pudo obtener la serie o número del comprobante.'
+        });
+
+        return;
+    }
+
     btn.prop('disabled', true);
-    btn.html(`
-        <span class="spinner-border spinner-border-sm mr-1"></span>
-        Emitiendo...
-    `);
+
+    if (documentType === 'sale_note') {
+
+        btn.html(`
+            <span class="spinner-border spinner-border-sm mr-1"></span>
+            Emitiendo nota...
+        `);
+
+    } else {
+
+        btn.html(`
+            <span class="spinner-border spinner-border-sm mr-1"></span>
+            Emitiendo SUNAT...
+        `);
+
+    }
 
     $.ajax({
+
         url: window.routes.invoiceGenerate,
+
         type: 'POST',
+
         data: $('#invoiceForm').serialize(),
+
         success: function (response) {
 
             btn.prop('disabled', false);
-            btn.html(`
-                <i class="fas fa-paper-plane mr-2"></i>
-                Emitir Comprobante SUNAT
-            `);
+
+            applyDocumentTypeUI();
 
             $('#generateInvoiceModal').modal('hide');
 
-            // Abrir PDF A4
+            // =========================================
+            // PDF A4
+            // =========================================
+
             if (response.pdf_url) {
-                window.open(response.pdf_url, '_blank');
+
+                window.open(
+                    response.pdf_url,
+                    '_blank'
+                );
+
             }
 
-            // Abrir ticket para impresión automática
+            // =========================================
+            // TICKET
+            // =========================================
+
             if (response.ticket_url) {
+
                 setTimeout(function () {
+
                     window.open(
                         response.ticket_url,
                         '_blank',
                         'width=420,height=800'
                     );
+
                 }, 500);
+
             }
 
             Swal.fire({
+
                 icon: 'success',
+
                 title: response.message || 'Comprobante emitido correctamente.',
+
                 toast: true,
+
                 position: 'top-end',
+
                 showConfirmButton: false,
+
                 timer: 3000
+
             });
 
             tablePayment.ajax.reload(null, false);
+
         },
+
         error: function (xhr) {
 
             btn.prop('disabled', false);
-            btn.html(`
-                <i class="fas fa-paper-plane mr-2"></i>
-                Emitir Comprobante SUNAT
-            `);
+
+            applyDocumentTypeUI();
 
             Swal.fire({
+
                 icon: 'error',
+
                 title: 'Error al emitir',
-                text: xhr.responseJSON?.message || 'No se pudo emitir el comprobante.'
+
+                text: xhr.responseJSON?.message ||
+                    'No se pudo emitir el comprobante.'
+
             });
+
         }
+
     });
+
+});
+
+
+// =========================================================
+// LIMPIAR MODAL FACTURACIÓN
+// =========================================================
+
+$('#generateInvoiceModal').on('hidden.bs.modal', function () {
+
+    $('#invoiceForm')[0].reset();
+
+    $('#company_id').val('');
+    $('#company_name').val('');
+    $('#series').val('');
+    $('#number').val('');
+    $('#description').val('');
+    $('#legend').val('');
+
+    $('#subtotal_preview').text('S/ 0.00');
+    $('#igv_preview').text('S/ 0.00');
+    $('#total_preview').text('S/ 0.00');
+    $('#invoice_total_preview').text('S/ 0.00');
+    $('#invoice_concept_preview').text('—');
+
+    $('#btnGenerateInvoice')
+        .prop('disabled', false)
+        .html(`
+            <i class="fas fa-paper-plane mr-2"></i>
+            Emitir Comprobante SUNAT
+        `);
+
 });

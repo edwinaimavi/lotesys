@@ -23,6 +23,8 @@ class InvoiceController extends Controller
     {
         $documentType = $request->document_type;
 
+        $companyId = $request->company_id;
+
         switch ($documentType) {
             case 'invoice':
                 $series = 'F001';
@@ -37,13 +39,19 @@ class InvoiceController extends Controller
                 break;
         }
 
-        $lastInvoice = Invoice::where(
-            'document_type',
-            $documentType
-        )->orderByDesc('id')->first();
+        $query = Invoice::where('document_type', $documentType)
+            ->where('series', $series);
+
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+
+        $lastInvoice = $query
+            ->orderByDesc('number')
+            ->first();
 
         $number = $lastInvoice
-            ? ($lastInvoice->number + 1)
+            ? ((int) $lastInvoice->number + 1)
             : 1;
 
         return response()->json([
@@ -507,7 +515,7 @@ class InvoiceController extends Controller
                     'success' => false,
                     'message' => 'Este pago ya tiene un comprobante SUNAT emitido.'
                 ], 422);
-            } 
+            }
 
             $company = Company::where('id', $data['company_id'])
                 ->where('status', 1)
@@ -518,6 +526,14 @@ class InvoiceController extends Controller
                     'success' => false,
                     'message' => 'La empresa seleccionada no existe o está inactiva.'
                 ], 404);
+            }
+            try {
+                $apisPeru->useCompanyRuc($company->ruc);
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
             }
 
             // =========================================
