@@ -38,7 +38,7 @@ return [
     */
 
     'logo' => '<b>CiCo</b>Sys',
-    'logo_img' => 'vendor/adminlte/dist/img/logoblanco.png',
+    'logo_img' => 'vendor/adminlte/dist/img/logo.png',
     'logo_img_class' => 'brand-image elevation-0',
     'logo_img_xl' => null,
     'logo_img_xl_class' => 'brand-image-xs',
@@ -223,10 +223,10 @@ return [
         |--------------------------------------------------------------------------
         */
 
-        [
+       /*  [
             'type' => 'sidebar-menu-search',
             'text' => 'Buscar en menú',
-        ],
+        ], */
 
         /*
         |--------------------------------------------------------------------------
