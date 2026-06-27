@@ -23,17 +23,6 @@
 
             </div>
 
-            <div>
-
-                <button class="btn btn-primary shadow-sm px-4" type="button" data-toggle="modal" data-target="#invoiceModal">
-
-                    <i class="fas fa-plus-circle mr-1"></i>
-                    Nuevo Comprobante
-
-                </button>
-
-            </div>
-
         </div>
 
         <div class="row">
@@ -122,6 +111,8 @@
 
                             <th>FECHA EMISIÓN</th>
 
+                            <th>CLIENTE</th>
+
                             <th>TOTAL</th>
 
                             <th>ESTADO SUNAT</th>
@@ -142,11 +133,6 @@
 
     </div>
 
-    {{-- MODALS --}}
- @include('admin.invoices.partials.modal')
-
-   {{--. @include('admin.invoices.partials.viewModal')
- --}}
 @stop
 
 @push('css')
@@ -250,20 +236,6 @@
         window.routes = {
 
             invoiceList: "{{ route('admin.invoices.list') }}",
-
-            storeInvoice: "{{ route('admin.invoices.store') }}",
-
-            updateInvoice: "{{ url('admin/invoices') }}",
-
-            deleteInvoice: "{{ url('admin/invoices') }}",
-
-            sendSunat: "{{ url('admin/invoices/send-sunat') }}",
-
-            downloadPdf: "{{ url('admin/invoices/pdf') }}",
-
-            downloadXml: "{{ url('admin/invoices/xml') }}",
-
-            downloadCdr: "{{ url('admin/invoices/cdr') }}",
 
         }
     </script>

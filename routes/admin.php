@@ -166,10 +166,6 @@ Route::resource('holidays', HolidayController::class)->except(['create']);
 
 
 Route::get('invoices/list', [InvoiceController::class, 'list'])->name('invoices.list');
-Route::resource(
-    'invoices',
-    InvoiceController::class
-);
 
 Route::post(
     'invoices/{payment}/generate',
@@ -184,22 +180,12 @@ Route::post(
 Route::get(
     'invoices/{invoice}/pdf',
     [InvoiceController::class, 'downloadPdf']
-)->name('invoices.pdf');
+)->name('invoices.downloadPdf');
 
 Route::get(
     'invoices/{invoice}/xml',
     [InvoiceController::class, 'downloadXml']
-)->name('invoices.xml');
-
-Route::get(
-    'invoices/{invoice}/cdr',
-    [InvoiceController::class, 'downloadCdr']
-)->name('invoices.cdr');
-
-Route::get(
-    'invoices/{invoice}/status',
-    [InvoiceController::class, 'checkSunatStatus']
-)->name('invoices.status');
+)->name('invoices.downloadXml');
 
 /* Route::post(
     'admin/invoices/store-temp',
@@ -217,8 +203,6 @@ Route::get(
     'invoices/{invoice}/ticket',
     [InvoiceController::class, 'ticket']
 )->name('invoices.ticket');
-
-Route::resource('invoices', InvoiceController::class)->except(['create']);
 
 
 

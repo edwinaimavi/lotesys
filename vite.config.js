@@ -13,6 +13,7 @@ export default defineConfig({
                 'resources/js/pages/company.js',
                 'resources/js/pages/customer.js',
                 'resources/js/pages/holiday.js',
+                'resources/js/pages/invoice.js',
                 'resources/js/pages/lateFeeSetting.js',
                 'resources/js/pages/lot.js',
                 'resources/js/pages/payment-report.js',

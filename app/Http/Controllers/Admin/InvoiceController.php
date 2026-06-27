@@ -13,6 +13,7 @@ use App\Services\ApisPeruService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Yajra\DataTables\Facades\DataTables;
 
 class InvoiceController extends Controller
 
@@ -197,6 +198,223 @@ class InvoiceController extends Controller
     public function index()
     {
         return view('admin.invoices.index');
+    }
+
+    public function list()
+    {
+        $invoices = Invoice::with([
+            'payment',
+            'sale',
+            'company',
+        ])->orderBy('id', 'desc');
+
+        return DataTables::eloquent($invoices)
+
+            ->addIndexColumn()
+
+            ->editColumn('document_type', function ($invoice) {
+
+                $types = [
+                    'invoice' => [
+                        'label' => 'Factura',
+                        'class' => 'badge-primary',
+                    ],
+                    'receipt' => [
+                        'label' => 'Boleta',
+                        'class' => 'badge-info',
+                    ],
+                    'sale_note' => [
+                        'label' => 'Nota de Venta',
+                        'class' => 'badge-secondary',
+                    ],
+                    'credit_note' => [
+                        'label' => 'Nota de Crédito',
+                        'class' => 'badge-warning',
+                    ],
+                    'debit_note' => [
+                        'label' => 'Nota de Débito',
+                        'class' => 'badge-warning',
+                    ],
+                ];
+
+                $type = $types[$invoice->document_type] ?? [
+                    'label' => $invoice->document_type ?: '—',
+                    'class' => 'badge-secondary',
+                ];
+
+                return '<span class="badge ' . $type['class'] . ' px-3 py-2">'
+                    . e($type['label'])
+                    . '</span>';
+            })
+
+            ->addColumn('customer', function ($invoice) {
+
+                return e($invoice->customer_name ?: '—');
+            })
+
+            ->editColumn('issue_date', function ($invoice) {
+
+                $date = $invoice->issue_date ?: $invoice->created_at;
+
+                return $date
+                    ? date('d/m/Y', strtotime($date))
+                    : '—';
+            })
+
+            ->editColumn('total_amount', function ($invoice) {
+
+                $currency = $invoice->currency ?: 'PEN';
+
+                return e($currency) . ' ' .
+                    number_format((float) $invoice->total_amount, 2);
+            })
+
+            ->editColumn('sunat_status', function ($invoice) {
+
+                $statuses = [
+                    'accepted' => [
+                        'label' => 'Emitido / Aceptado',
+                        'class' => 'badge-success',
+                    ],
+                    'pending' => [
+                        'label' => 'Pendiente',
+                        'class' => 'badge-warning',
+                    ],
+                    'rejected' => [
+                        'label' => 'Rechazado',
+                        'class' => 'badge-danger',
+                    ],
+                    'voided' => [
+                        'label' => 'Anulado',
+                        'class' => 'badge-secondary',
+                    ],
+                    'error' => [
+                        'label' => 'Error',
+                        'class' => 'badge-danger',
+                    ],
+                ];
+
+                $status = $statuses[$invoice->sunat_status] ?? [
+                    'label' => 'Sin enviar / Interno',
+                    'class' => 'badge-secondary',
+                ];
+
+                return '<span class="badge ' . $status['class'] . ' px-3 py-2">'
+                    . e($status['label'])
+                    . '</span>';
+            })
+
+            ->addColumn('acciones', function ($invoice) {
+
+                $pdfPath = $this->normalizePublicInvoicePath(
+                    $invoice->pdf_path
+                );
+
+                $xmlPath = $this->normalizePublicInvoicePath(
+                    $invoice->xml_path
+                );
+
+                $pdfExists = $pdfPath &&
+                    Storage::disk('public')->exists($pdfPath);
+
+                $xmlExists = $xmlPath &&
+                    Storage::disk('public')->exists($xmlPath);
+
+                $pdfButton = $pdfExists
+                    ? '<a href="' . route('admin.invoices.downloadPdf', $invoice->id) . '" target="_blank" class="btn btn-outline-danger btn-sm" title="PDF" data-toggle="tooltip"><i class="fas fa-file-pdf"></i></a>'
+                    : '<button type="button" class="btn btn-outline-secondary btn-sm" title="PDF no disponible" disabled><i class="fas fa-file-pdf"></i></button>';
+
+                $xmlButton = $xmlExists
+                    ? '<a href="' . route('admin.invoices.downloadXml', $invoice->id) . '" class="btn btn-outline-primary btn-sm" title="XML" data-toggle="tooltip"><i class="fas fa-file-code"></i></a>'
+                    : '<button type="button" class="btn btn-outline-secondary btn-sm" title="XML no disponible" disabled><i class="fas fa-file-code"></i></button>';
+
+                return '<div class="btn-group shadow-sm" role="group">'
+                    . $pdfButton
+                    . $xmlButton
+                    . '</div>';
+            })
+
+            ->rawColumns([
+                'document_type',
+                'sunat_status',
+                'acciones',
+            ])
+
+            ->make(true);
+    }
+
+    public function downloadPdf($id)
+    {
+        $invoice = Invoice::findOrFail($id);
+
+        $path = $this->resolveInvoiceFilePath($invoice->pdf_path);
+
+        if (!$path) {
+            return redirect()
+                ->back()
+                ->with('error', 'El archivo PDF no está disponible.');
+        }
+
+        return response()->file(
+            Storage::disk('public')->path($path)
+        );
+    }
+
+    public function downloadXml($id)
+    {
+        $invoice = Invoice::findOrFail($id);
+
+        $path = $this->resolveInvoiceFilePath($invoice->xml_path);
+
+        if (!$path) {
+            return redirect()
+                ->back()
+                ->with('error', 'El archivo XML no está disponible.');
+        }
+
+        return Storage::disk('public')->download($path);
+    }
+
+    private function resolveInvoiceFilePath(?string $path): ?string
+    {
+        $normalizedPath = $this->normalizePublicInvoicePath($path);
+
+        if (
+            !$normalizedPath ||
+            !Storage::disk('public')->exists($normalizedPath)
+        ) {
+            return null;
+        }
+
+        return $normalizedPath;
+    }
+
+    private function normalizePublicInvoicePath(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $path = trim(str_replace('\\', '/', $path));
+
+        $path = preg_replace('#^https?://[^/]+/#', '', $path);
+
+        $prefixes = [
+            'storage/app/public/',
+            'app/public/',
+            'public/storage/',
+            'storage/',
+            'public/',
+        ];
+
+        foreach ($prefixes as $prefix) {
+            if (str_starts_with($path, $prefix)) {
+                $path = substr($path, strlen($prefix));
+                break;
+            }
+        }
+
+        return ltrim($path, '/');
     }
 
     /**
