@@ -9,12 +9,15 @@
                 {{ trim(($sale->customer->first_name ?? '') . ' ' . ($sale->customer->last_name ?? '')) }} @endif
         "
         data-lot="{{ $sale->lot->code ?? '—' }}" data-customer_id="{{ $sale->customer_id }}"
-        data-lot_id="{{ $sale->lot_id }}" data-sale_date="{{ $sale->sale_date }}"
+        data-lot_id="{{ $sale->lot_id }}" data-sale_type="{{ $sale->sale_type }}"
+        data-sale_date="{{ $sale->sale_date }}"
         data-lot_price="{{ $sale->lot_price }}" data-initial_payment="{{ $sale->initial_payment }}"
         data-balance_finance="{{ $sale->balance_finance }}" data-installments_count="{{ $sale->installments_count }}"
         data-monthly_payment="{{ $sale->monthly_payment }}" data-interest_rate="{{ $sale->interest_rate }}"
         data-first_payment_date="{{ $sale->first_payment_date }}" data-payment_day="{{ $sale->payment_day }}"
-        data-status="{{ $sale->status }}"
+        data-status="{{ $sale->status }}" data-is_legacy_sale="{{ $sale->is_legacy_sale ? 1 : 0 }}"
+        data-collection_rules_start_date="{{ optional($sale->collection_rules_start_date)->format('Y-m-d') }}"
+        data-legacy_observation="{{ $sale->legacy_observation }}"
         data-created_at="{{ $sale->created_at ? $sale->created_at->format('d/m/Y H:i') : '—' }}"
         data-updated_at="{{ $sale->updated_at ? $sale->updated_at->format('d/m/Y H:i') : '—' }}"
         data-created_by="{{ $sale->creator->name ?? 'No registrado' }}"
@@ -42,12 +45,14 @@
     <button type="button" class="btn btn-outline-primary btn-sm editSale" data-toggle="tooltip" title="Editar Venta"
         data-id="{{ $sale->id }}" data-sale_code="{{ $sale->sale_code }}"
         data-customer_id="{{ $sale->customer_id }}" data-lot_id="{{ $sale->lot_id }}"
-        data-sale_date="{{ $sale->sale_date }}" data-lot_price="{{ $sale->lot_price }}"
+        data-sale_type="{{ $sale->sale_type }}" data-sale_date="{{ $sale->sale_date }}" data-lot_price="{{ $sale->lot_price }}"
         data-initial_payment="{{ $sale->initial_payment }}" data-balance_finance="{{ $sale->balance_finance }}"
         data-installments_count="{{ $sale->installments_count }}" data-monthly_payment="{{ $sale->monthly_payment }}"
         data-interest_rate="{{ $sale->interest_rate }}" data-first_payment_date="{{ $sale->first_payment_date }}"
         data-payment_day="{{ $sale->payment_day }}" data-late_fee_setting_id="{{ $sale->late_fee_setting_id }}"
-        data-status="{{ $sale->status }}">
+        data-is_legacy_sale="{{ $sale->is_legacy_sale ? 1 : 0 }}"
+        data-collection_rules_start_date="{{ optional($sale->collection_rules_start_date)->format('Y-m-d') }}"
+        data-legacy_observation="{{ $sale->legacy_observation }}" data-status="{{ $sale->status }}">
 
         <i class="fas fa-pen"></i>
 

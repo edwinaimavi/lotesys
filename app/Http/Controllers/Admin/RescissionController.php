@@ -73,10 +73,7 @@ class RescissionController extends Controller
 
             ->addColumn('overdue_installments', function ($sale) {
 
-                return $sale->paymentSchedules
-                    ->where('status', 'pendiente')
-                    ->where('due_date', '<', now()->toDateString())
-                    ->count();
+                return $this->countOverdueInstallments($sale);
             })
 
             ->addColumn('amount_paid', function ($sale) {
@@ -89,10 +86,7 @@ class RescissionController extends Controller
 
             ->editColumn('status', function ($sale) {
 
-                $overdue = $sale->paymentSchedules
-                    ->where('status', 'pendiente')
-                    ->where('due_date', '<', now()->toDateString())
-                    ->count();
+                $overdue = $this->countOverdueInstallments($sale);
 
                 if ($overdue >= 3) {
                     return '<span class="badge badge-danger">CANDIDATO</span>';
@@ -107,10 +101,7 @@ class RescissionController extends Controller
 
             ->addColumn('actions', function ($sale) {
 
-                $overdue = $sale->paymentSchedules
-                    ->where('status', 'pendiente')
-                    ->where('due_date', '<', now()->toDateString())
-                    ->count();
+                $overdue = $this->countOverdueInstallments($sale);
 
                 if ($overdue >= 3) {
                     return '
@@ -146,10 +137,7 @@ class RescissionController extends Controller
             'paymentSchedules'
         ])->findOrFail($sale);
 
-        $overdueInstallments = $sale->paymentSchedules
-            ->where('status', 'pendiente')
-            ->where('due_date', '<', now()->toDateString())
-            ->count();
+        $overdueInstallments = $this->countOverdueInstallments($sale);
 
         $amountPaid = $sale->payments
             ->where('status', 'activo')
@@ -267,5 +255,20 @@ class RescissionController extends Controller
     public function destroy(string $id)
     {
         //
+    }
+
+    private function countOverdueInstallments(Sale $sale): int
+    {
+        return $sale->paymentSchedules
+            ->filter(function ($schedule) use ($sale) {
+                $schedule->setRelation('sale', $sale);
+
+                return in_array($schedule->status, [
+                    'pendiente',
+                    'parcial',
+                    'vencido',
+                ], true) && $schedule->isOverdueForCollections();
+            })
+            ->count();
     }
 }

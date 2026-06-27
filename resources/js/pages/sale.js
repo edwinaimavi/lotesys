@@ -182,6 +182,41 @@ document.addEventListener("DOMContentLoaded", function () {
     );
 
     // =========================================================
+    // VENTA HISTÓRICA / REGULARIZACIÓN
+    // =========================================================
+
+    function toggleLegacySaleFields() {
+
+        const isLegacy = $('#is_legacy_sale').is(':checked');
+
+        if (isLegacy) {
+
+            $('#legacy_sale_fields')
+                .removeClass('d-none');
+
+            $('#collection_rules_start_date, #legacy_observation')
+                .prop('disabled', false);
+
+        } else {
+
+            $('#legacy_sale_fields')
+                .addClass('d-none');
+
+            $('#collection_rules_start_date, #legacy_observation')
+                .prop('disabled', true)
+                .val('');
+
+        }
+
+    }
+
+    $('#is_legacy_sale').on('change', function () {
+
+        toggleLegacySaleFields();
+
+    });
+
+    // =========================================================
     // ABRIR MODAL NUEVA VENTA
     // =========================================================
 
@@ -398,6 +433,22 @@ document.addEventListener("DOMContentLoaded", function () {
             $(this).data('late_fee_setting_id')
         );
 
+        const isLegacySale =
+            parseInt($(this).data('is_legacy_sale')) === 1;
+
+        $('#is_legacy_sale')
+            .prop('checked', isLegacySale);
+
+        toggleLegacySaleFields();
+
+        $('#collection_rules_start_date').val(
+            $(this).data('collection_rules_start_date') || ''
+        );
+
+        $('#legacy_observation').val(
+            $(this).data('legacy_observation') || ''
+        );
+
         $('#status').val($(this).data('status'));
 
         $('.icon_modal').html(`
@@ -433,6 +484,11 @@ document.addEventListener("DOMContentLoaded", function () {
         $('#monthly_payment_help').html(
             'Calculado automáticamente'
         );
+
+        $('#is_legacy_sale')
+            .prop('checked', false);
+
+        toggleLegacySaleFields();
 
         $form.removeAttr('data-id');
 

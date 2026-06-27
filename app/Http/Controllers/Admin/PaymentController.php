@@ -341,89 +341,9 @@ class PaymentController extends Controller
                     // CALCULAR MORA ACTUAL
                     // =============================================
 
-                    $lateFee = 0;
-
-                    $sale = $schedule->sale;
-
-                    if ($sale && $sale->lateFeeSetting) {
-
-                        $setting = $sale->lateFeeSetting;
-
-                        $today = Carbon::today();
-
-                        $dueDate = Carbon::parse(
-                            $schedule->due_date
-                        );
-
-                        // =========================================
-                        // SI YA VENCIÓ
-                        // =========================================
-
-                        if ($today->gt($dueDate)) {
-
-                            $daysLate = 0;
-
-                            $current = $dueDate->copy();
-
-                            while ($current->lt($today)) {
-
-                                $current->addDay();
-
-                                $isSunday =
-                                    $current->dayOfWeek === Carbon::SUNDAY;
-
-                                $isHoliday = Holiday::where(
-                                    'date',
-                                    $current->format('Y-m-d')
-                                )
-                                    ->where('status', 'activo')
-                                    ->exists();
-
-                                // =====================================
-                                // DOMINGOS
-                                // =====================================
-
-                                if (
-                                    !$setting->apply_sundays &&
-                                    $isSunday
-                                ) {
-                                    continue;
-                                }
-
-                                // =====================================
-                                // FERIADOS
-                                // =====================================
-
-                                if (
-                                    !$setting->apply_holidays &&
-                                    $isHoliday
-                                ) {
-                                    continue;
-                                }
-
-                                $daysLate++;
-                            }
-
-                            // =========================================
-                            // RESTAR DÍAS DE GRACIA
-                            // =========================================
-
-                            $daysLate -= $setting->grace_days;
-
-                            if ($daysLate < 0) {
-
-                                $daysLate = 0;
-                            }
-
-                            // =========================================
-                            // CALCULAR MORA
-                            // =========================================
-
-                            $lateFee =
-                                $daysLate *
-                                $setting->daily_late_fee;
-                        }
-                    }
+                    $lateFee = $this->calculateLateFeeForSchedule(
+                        $schedule
+                    );
 
                     // =============================================
                     // TOTAL REAL DE LA CUOTA
@@ -453,8 +373,6 @@ class PaymentController extends Controller
 
                         $remaining = 0;
                     }
-                    $schedule->late_fee = round($lateFee, 2);
-
                     $schedule->remaining_balance = $remaining;
 
                     // =============================================
@@ -790,59 +708,9 @@ class PaymentController extends Controller
 
         foreach ($schedules as $schedule) {
 
-            $lateFee = (float) ($schedule->late_fee ?? 0);
-
-            // Si ya existe mora guardada, usarla.
-            // Si no existe, calcularla.
-            if ($lateFee <= 0) {
-
-                $sale = $schedule->sale;
-
-                if ($sale && $sale->lateFeeSetting) {
-
-                    $setting = $sale->lateFeeSetting;
-
-                    $today = Carbon::today();
-
-                    $dueDate = Carbon::parse($schedule->due_date);
-
-                    if ($today->gt($dueDate)) {
-
-                        $daysLate = 0;
-
-                        $current = $dueDate->copy();
-
-                        while ($current->lt($today)) {
-
-                            $current->addDay();
-
-                            $isSunday = $current->dayOfWeek === Carbon::SUNDAY;
-
-                            $isHoliday = Holiday::where('date', $current->toDateString())
-                                ->where('status', 'activo')
-                                ->exists();
-
-                            if (!$setting->apply_sundays && $isSunday) {
-                                continue;
-                            }
-
-                            if (!$setting->apply_holidays && $isHoliday) {
-                                continue;
-                            }
-
-                            $daysLate++;
-                        }
-
-                        $daysLate -= (int) $setting->grace_days;
-
-                        if ($daysLate < 0) {
-                            $daysLate = 0;
-                        }
-
-                        $lateFee = $daysLate * (float) $setting->daily_late_fee;
-                    }
-                }
-            }
+            $lateFee = $this->calculateLateFeeForSchedule(
+                $schedule
+            );
 
             $schedule->late_fee = round($lateFee, 2);
             $schedule->total_real = round(
@@ -852,6 +720,67 @@ class PaymentController extends Controller
         }
 
         return response()->json($schedules);
+    }
+
+    private function calculateLateFeeForSchedule(PaymentSchedule $schedule): float
+    {
+        $sale = $schedule->sale;
+
+        if (!$sale || !$sale->lateFeeSetting) {
+            return 0;
+        }
+
+        $setting = $sale->lateFeeSetting;
+        $today = Carbon::today();
+        $dueDate = $schedule->getEffectiveDueDate();
+
+        if ($today->lte($dueDate)) {
+            return 0;
+        }
+
+        $daysLate = 0;
+        $current = $dueDate->copy();
+
+        while ($current->lt($today)) {
+
+            $current->addDay();
+
+            $isSunday = $current->dayOfWeek === Carbon::SUNDAY;
+
+            $isHoliday = Holiday::where(
+                'date',
+                $current->format('Y-m-d')
+            )
+                ->where('status', 'activo')
+                ->exists();
+
+            if (!$setting->apply_sundays && $isSunday) {
+                continue;
+            }
+
+            if (!$setting->apply_holidays && $isHoliday) {
+                continue;
+            }
+
+            $daysLate++;
+        }
+
+        $daysLate -= (int) $setting->grace_days;
+
+        if ($daysLate < 0) {
+            $daysLate = 0;
+        }
+
+        $lateFee = $daysLate * (float) $setting->daily_late_fee;
+
+        if (
+            $setting->max_late_fee &&
+            $lateFee > $setting->max_late_fee
+        ) {
+            $lateFee = $setting->max_late_fee;
+        }
+
+        return round($lateFee, 2);
     }
 
     private function updateSaleAndLotStatus($saleId): void
@@ -950,9 +879,8 @@ class PaymentController extends Controller
 
             foreach ($payment->details as $detail) {
 
-                $schedule = PaymentSchedule::find(
-                    $detail->payment_schedule_id
-                );
+                $schedule = PaymentSchedule::with('sale.lateFeeSetting')
+                    ->find($detail->payment_schedule_id);
 
                 if (!$schedule) {
                     continue;
@@ -993,69 +921,9 @@ class PaymentController extends Controller
                 // RECALCULAR MORA ACTUAL
                 // =============================================
 
-                $lateFee = 0;
-
-                $sale = $schedule->sale;
-
-                if ($sale && $sale->lateFeeSetting) {
-
-                    $setting = $sale->lateFeeSetting;
-
-                    $today = Carbon::today();
-
-                    $dueDate = Carbon::parse(
-                        $schedule->due_date
-                    );
-
-                    if ($today->gt($dueDate)) {
-
-                        $daysLate = 0;
-
-                        $current = $dueDate->copy();
-
-                        while ($current->lt($today)) {
-
-                            $current->addDay();
-
-                            $isSunday =
-                                $current->dayOfWeek === Carbon::SUNDAY;
-
-                            $isHoliday = Holiday::where(
-                                'date',
-                                $current->format('Y-m-d')
-                            )
-                                ->where('status', 'activo')
-                                ->exists();
-
-                            if (
-                                !$setting->apply_sundays &&
-                                $isSunday
-                            ) {
-                                continue;
-                            }
-
-                            if (
-                                !$setting->apply_holidays &&
-                                $isHoliday
-                            ) {
-                                continue;
-                            }
-
-                            $daysLate++;
-                        }
-
-                        $daysLate -= $setting->grace_days;
-
-                        if ($daysLate < 0) {
-
-                            $daysLate = 0;
-                        }
-
-                        $lateFee =
-                            $daysLate *
-                            $setting->daily_late_fee;
-                    }
-                }
+                $lateFee = $this->calculateLateFeeForSchedule(
+                    $schedule
+                );
 
                 // =============================================
                 // TOTAL REAL
@@ -1084,8 +952,6 @@ class PaymentController extends Controller
                 if ($remaining < 0) {
                     $remaining = 0;
                 }
-                $schedule->late_fee = round($lateFee, 2);
-
                 $schedule->remaining_balance = $remaining;
 
                 // =============================================

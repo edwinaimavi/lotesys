@@ -69,9 +69,7 @@ class CalculateLateFees extends Command
 
             $today = Carbon::today();
 
-            $dueDate = Carbon::parse(
-                $schedule->due_date
-            );
+            $dueDate = $schedule->getEffectiveDueDate();
 
             // ================================================
             // SI AÚN NO VENCE

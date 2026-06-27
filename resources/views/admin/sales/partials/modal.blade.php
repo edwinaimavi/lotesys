@@ -588,6 +588,64 @@
 
                                 </div>
 
+                                <!-- VENTA HISTORICA -->
+                                <div class="border rounded bg-white p-3 mb-3">
+
+                                    <div class="custom-control custom-checkbox">
+
+                                        <input type="checkbox" class="custom-control-input" id="is_legacy_sale"
+                                            name="is_legacy_sale" value="1">
+
+                                        <label class="custom-control-label small font-weight-bold text-secondary"
+                                            for="is_legacy_sale">
+
+                                            Venta histórica / regularización
+
+                                        </label>
+
+                                    </div>
+
+                                    <div id="legacy_sale_fields" class="form-row mt-3 d-none">
+
+                                        <div class="form-group col-md-5">
+
+                                            <label for="collection_rules_start_date"
+                                                class="small font-weight-bold text-secondary">
+
+                                                FECHA INICIO MORA / RESCISIÓN
+                                                <span class="text-danger">*</span>
+
+                                            </label>
+
+                                            <input type="date" id="collection_rules_start_date"
+                                                name="collection_rules_start_date" class="form-control form-control-sm"
+                                                disabled>
+
+                                            <span class="invalid-feedback"
+                                                id="collection_rules_start_date-error"></span>
+
+                                        </div>
+
+                                        <div class="form-group col-md-7">
+
+                                            <label for="legacy_observation"
+                                                class="small font-weight-bold text-secondary">
+
+                                                OBSERVACIÓN
+
+                                            </label>
+
+                                            <textarea id="legacy_observation" name="legacy_observation"
+                                                class="form-control form-control-sm" rows="2" disabled></textarea>
+
+                                            <span class="invalid-feedback" id="legacy_observation-error"></span>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
                                 <!-- NOTA -->
                                 <div class="form-row">
 

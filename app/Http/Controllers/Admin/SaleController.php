@@ -269,6 +269,22 @@ class SaleController extends Controller
             'status' => [
                 'required',
                 'in:activo,cancelado,rescindido,finalizado'
+            ],
+
+            'is_legacy_sale' => [
+                'nullable',
+                'boolean'
+            ],
+
+            'collection_rules_start_date' => [
+                'required_if:is_legacy_sale,1',
+                'nullable',
+                'date'
+            ],
+
+            'legacy_observation' => [
+                'nullable',
+                'string'
             ]
 
         ]);
@@ -310,6 +326,14 @@ class SaleController extends Controller
             // =====================================================
             $data['late_fee_setting_id'] =
                 $request->late_fee_setting_id ?: null;
+
+            $data['is_legacy_sale'] = $request->boolean('is_legacy_sale');
+
+            if (!$data['is_legacy_sale']) {
+                $data['collection_rules_start_date'] = null;
+                $data['legacy_observation'] = null;
+            }
+
             $sale = Sale::create($data);
 
             $this->generatePaymentSchedules($sale, $data);
@@ -436,6 +460,11 @@ class SaleController extends Controller
                 'exists:lots,id'
             ],
 
+            'sale_type' => [
+                'required',
+                'in:contado,financiado'
+            ],
+
             'sale_date' => [
                 'required',
                 'date'
@@ -507,6 +536,22 @@ class SaleController extends Controller
             'status' => [
                 'required',
                 'in:activo,cancelado,rescindido,finalizado'
+            ],
+
+            'is_legacy_sale' => [
+                'nullable',
+                'boolean'
+            ],
+
+            'collection_rules_start_date' => [
+                'required_if:is_legacy_sale,1',
+                'nullable',
+                'date'
+            ],
+
+            'legacy_observation' => [
+                'nullable',
+                'string'
             ]
 
         ]);
@@ -554,6 +599,13 @@ class SaleController extends Controller
 
             $data['late_fee_setting_id'] =
                 $request->late_fee_setting_id ?: null;
+
+            $data['is_legacy_sale'] = $request->boolean('is_legacy_sale');
+
+            if (!$data['is_legacy_sale']) {
+                $data['collection_rules_start_date'] = null;
+                $data['legacy_observation'] = null;
+            }
 
             $sale->update($data);
 
@@ -675,6 +727,8 @@ class SaleController extends Controller
             ->sum('discount_amount');
 
         $schedules = $sale->paymentSchedules->map(function ($schedule) use ($sale) {
+            $schedule->setRelation('sale', $sale);
+
             $schedule->late_fee = $this->calculateLateFeeForSchedule(
                 $schedule,
                 $sale->lateFeeSetting
@@ -928,7 +982,7 @@ class SaleController extends Controller
         }
  */
         $today = Carbon::today();
-        $dueDate = Carbon::parse($schedule->due_date)->startOfDay();
+        $dueDate = $schedule->getEffectiveDueDate();
 
         if ($today->lessThanOrEqualTo($dueDate)) {
             return 0;

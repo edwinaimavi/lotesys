@@ -34,8 +34,17 @@ class Sale extends Model
 
         'status',
 
+        'is_legacy_sale',
+        'collection_rules_start_date',
+        'legacy_observation',
+
         'created_by',
         'updated_by'
+    ];
+
+    protected $casts = [
+        'is_legacy_sale' => 'boolean',
+        'collection_rules_start_date' => 'date',
     ];
 
     // =====================================================
