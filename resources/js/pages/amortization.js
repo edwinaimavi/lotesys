@@ -7,11 +7,36 @@ $(function () {
 
 });
 
+function initAmortizationSelect2() {
+
+    const $sale = $('#sale_id');
+
+    if (
+        !$sale.length ||
+        typeof $.fn.select2 === 'undefined'
+    ) {
+        return;
+    }
+
+    if ($sale.hasClass('select2-hidden-accessible')) {
+        $sale.select2('destroy');
+    }
+
+    $sale.select2({
+        width: '100%',
+        dropdownParent: $('#amortizationModal'),
+        placeholder: 'Seleccione una venta'
+    });
+
+}
+
 // =========================================================
 // DATATABLE
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', function () {
+
+    initAmortizationSelect2();
 
     tableAmortization = $('#tableAmortization').DataTable({
 
@@ -137,6 +162,12 @@ document.addEventListener('DOMContentLoaded', function () {
         ]
 
     });
+
+});
+
+$('#amortizationModal').on('shown.bs.modal', function () {
+
+    initAmortizationSelect2();
 
 });
 

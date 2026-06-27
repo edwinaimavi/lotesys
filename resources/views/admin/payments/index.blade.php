@@ -2,6 +2,8 @@
 
 @section('subtitle', 'Pagos')
 
+@section('plugins.Select2', true)
+
 @section('header')
 
     <div class="container-fluid">

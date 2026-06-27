@@ -6,6 +6,29 @@ $(function () {
     $('[data-toggle="tooltip"]').tooltip();
 });
 
+function initPaymentSelect2() {
+
+    const $sale = $('#sale_id');
+
+    if (
+        !$sale.length ||
+        typeof $.fn.select2 === 'undefined'
+    ) {
+        return;
+    }
+
+    if ($sale.hasClass('select2-hidden-accessible')) {
+        $sale.select2('destroy');
+    }
+
+    $sale.select2({
+        width: '100%',
+        dropdownParent: $('#paymentModal'),
+        placeholder: 'Seleccione una venta'
+    });
+
+}
+
 document.addEventListener("DOMContentLoaded", function () {
 
     // =========================================================
@@ -17,6 +40,8 @@ document.addEventListener("DOMContentLoaded", function () {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
     });
+
+    initPaymentSelect2();
 
     // =========================================================
     // DATATABLE
@@ -907,6 +932,8 @@ $(document).on('change', '#payment_method', function () {
 |--------------------------------------------------------------------------
 */
 $('#paymentModal').on('shown.bs.modal', function () {
+
+    initPaymentSelect2();
 
     togglePaymentFields();
 
