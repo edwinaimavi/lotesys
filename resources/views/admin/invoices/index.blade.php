@@ -60,6 +60,41 @@
 
     </div>
 
+    <div class="modal fade" id="apiResponseModal" tabindex="-1" role="dialog" aria-labelledby="apiResponseModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <div>
+                        <h5 class="modal-title font-weight-bold" id="apiResponseModalLabel">
+                            <i class="fas fa-code text-info mr-2"></i>Respuesta API
+                        </h5>
+                        <small id="apiInvoiceLabel" class="text-muted"></small>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div id="apiResponseLoading" class="text-center py-5">
+                        <i class="fas fa-spinner fa-spin fa-2x text-info"></i>
+                    </div>
+                    <div id="apiResponseError" class="alert alert-danger d-none"></div>
+                    <div id="apiResponseContent" class="d-none">
+                        <div class="form-group mb-3">
+                            <label for="apiAttemptSelect" class="font-weight-bold">Intento registrado</label>
+                            <select id="apiAttemptSelect" class="form-control form-control-sm"></select>
+                        </div>
+                        <div id="apiAttemptDetails"></div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" id="copyApiResponse" class="btn btn-outline-info btn-sm">
+                        <i class="far fa-copy mr-1"></i>Copiar respuesta
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 @stop
 
 @section('content_body')
@@ -227,6 +262,18 @@
 
             color: #17a2b8;
 
+        }
+
+        .api-code-block {
+            max-height: 320px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #1f2933;
+            color: #e8eef5;
+            border-radius: 8px;
+            padding: 14px;
+            font: 12px/1.5 Consolas, Monaco, monospace;
         }
     </style>
 @endpush

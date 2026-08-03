@@ -62,5 +62,9 @@ class Invoice extends Model
     {
         return $this->belongsTo(Payment::class);
     }
+
+    public function apiLogs()
+    {
+        return $this->hasMany(InvoiceApiLog::class);
+    }
 }
-    //

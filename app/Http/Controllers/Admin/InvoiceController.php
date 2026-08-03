@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Invoice;
+use App\Models\InvoiceApiLog;
 use App\Models\Sale;
 use App\Models\Payment;
 use App\Models\Company;
@@ -13,6 +14,7 @@ use App\Services\ApisPeruService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 
 class InvoiceController extends Controller
@@ -206,7 +208,7 @@ class InvoiceController extends Controller
             'payment',
             'sale',
             'company',
-        ])->orderBy('id', 'desc');
+        ])->withExists('apiLogs')->orderBy('id', 'desc');
 
         return DataTables::eloquent($invoices)
 
@@ -328,9 +330,14 @@ class InvoiceController extends Controller
                     ? '<a href="' . route('admin.invoices.downloadXml', $invoice->id) . '" class="btn btn-outline-primary btn-sm" title="XML" data-toggle="tooltip"><i class="fas fa-file-code"></i></a>'
                     : '<button type="button" class="btn btn-outline-secondary btn-sm" title="XML no disponible" disabled><i class="fas fa-file-code"></i></button>';
 
+                $apiButton = $invoice->api_logs_exists
+                    ? '<button type="button" class="btn btn-outline-info btn-sm btn-api-response" title="Ver respuesta API" data-toggle="tooltip" data-url="' . route('admin.invoices.apiLogs', $invoice->id) . '"><i class="fas fa-code"></i></button>'
+                    : '<button type="button" class="btn btn-outline-secondary btn-sm" title="Sin respuesta API registrada" data-toggle="tooltip" disabled><i class="fas fa-code"></i></button>';
+
                 return '<div class="btn-group shadow-sm" role="group">'
                     . $pdfButton
                     . $xmlButton
+                    . $apiButton
                     . '</div>';
             })
 
@@ -341,6 +348,38 @@ class InvoiceController extends Controller
             ])
 
             ->make(true);
+    }
+
+    public function apiLogs(Invoice $invoice)
+    {
+        $logs = $invoice->apiLogs()
+            ->latest('id')
+            ->get()
+            ->map(function (InvoiceApiLog $log) {
+                return [
+                    'id' => $log->id,
+                    'action' => $log->action,
+                    'provider' => $log->provider,
+                    'endpoint' => $log->endpoint,
+                    'http_status' => $log->http_status,
+                    'success' => $log->success,
+                    'request_payload' => $this->protectSensitiveData($log->request_payload),
+                    'response_body' => $this->protectSensitiveData($log->response_body),
+                    'error_message' => $this->protectSensitiveData($log->error_message),
+                    'exception_message' => $this->protectSensitiveData($log->exception_message),
+                    'created_at' => optional($log->created_at)->format('d/m/Y H:i:s'),
+                ];
+            });
+
+        return response()->json([
+            'invoice' => [
+                'id' => $invoice->id,
+                'document_type' => $invoice->document_type,
+                'series' => $invoice->series,
+                'number' => $invoice->number,
+            ],
+            'logs' => $logs,
+        ]);
     }
 
     public function downloadPdf($id)
@@ -372,7 +411,9 @@ class InvoiceController extends Controller
                 ->with('error', 'El archivo XML no está disponible.');
         }
 
-        return Storage::disk('public')->download($path);
+        $absolutePath = Storage::disk('public')->path($path);
+
+        return response()->download($absolutePath);
     }
 
     private function resolveInvoiceFilePath(?string $path): ?string
@@ -690,6 +731,8 @@ class InvoiceController extends Controller
 
     public function generate(Request $request, ApisPeruService $apisPeru)
     {
+        $payload = null;
+        $apiLog = null;
         $data = $request->validate([
             'payment_id'           => 'required|exists:payments,id',
             'sale_id'              => 'required|exists:sales,id',
@@ -906,6 +949,8 @@ class InvoiceController extends Controller
 
             $send = $apisPeru->sendInvoice($payload);
 
+            $apiLog = $this->storeApiLog(null, $payload, $send);
+
             if (! $send['success']) {
                 return response()->json([
                     'success' => false,
@@ -985,6 +1030,10 @@ class InvoiceController extends Controller
                 'updated_by' => Auth::id(),
             ]);
 
+            if ($apiLog) {
+                $apiLog->update(['invoice_id' => $invoice->id]);
+            }
+
             DB::commit();
 
             $documentName = $data['document_type'] === 'invoice'
@@ -1002,6 +1051,18 @@ class InvoiceController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
 
+            if ($payload && ! $apiLog) {
+                $this->storeApiLog(null, $payload, [
+                    'success' => false,
+                    'endpoint' => null,
+                    'http_status' => null,
+                    'response_body' => null,
+                    'response_json' => null,
+                    'error_message' => null,
+                    'exception_message' => $e->getMessage(),
+                ]);
+            }
+
             if (!empty($pdfPath) && Storage::disk('public')->exists($pdfPath)) {
                 Storage::disk('public')->delete($pdfPath);
             }
@@ -1015,6 +1076,71 @@ class InvoiceController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function storeApiLog(?Invoice $invoice, array $payload, array $result): ?InvoiceApiLog
+    {
+        try {
+            $safePayload = $this->sanitizeSensitiveValues($payload);
+            $responseBody = $this->protectSensitiveData($result['response_body'] ?? null);
+            $responseJson = $result['response_json'] ?? null;
+
+            return InvoiceApiLog::create([
+                'invoice_id' => $invoice?->id,
+                'action' => 'send',
+                'provider' => 'APISPERU',
+                'endpoint' => $result['endpoint'] ?? null,
+                'http_status' => $result['http_status'] ?? null,
+                'success' => (bool) ($result['success'] ?? false),
+                'request_payload' => json_encode($safePayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'response_body' => $responseBody,
+                'response_json' => $responseJson === null
+                    ? null
+                    : json_encode($this->sanitizeSensitiveValues($responseJson), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'error_message' => $this->protectSensitiveData($result['error_message'] ?? null),
+                'exception_message' => $this->protectSensitiveData($result['exception_message'] ?? null),
+                'created_by' => Auth::id(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('No se pudo registrar la auditoría de APISPERU.', [
+                'invoice_id' => $invoice?->id,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function sanitizeSensitiveValues($value)
+    {
+        if (! is_array($value)) {
+            return is_string($value) ? $this->protectSensitiveData($value) : $value;
+        }
+
+        foreach ($value as $key => $item) {
+            if (preg_match('/authorization|token|bearer|api[_-]?key/i', (string) $key)) {
+                $value[$key] = '[PROTECTED]';
+                continue;
+            }
+
+            $value[$key] = $this->sanitizeSensitiveValues($item);
+        }
+
+        return $value;
+    }
+
+    private function protectSensitiveData(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        $patterns = [
+            '/("?(?:authorization|token|api[_-]?key)"?\s*[:=]\s*")([^"]*)(")/i',
+            '/(bearer\s+)[A-Za-z0-9._~+\/-]+=*/i',
+        ];
+
+        return preg_replace($patterns, ['$1[PROTECTED]$3', '$1[PROTECTED]'], $value);
     }
 
 

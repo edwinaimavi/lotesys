@@ -104,24 +104,45 @@ class ApisPeruService
     */
     public function sendInvoice(array $payload): array
     {
-        try {
+        $endpoint = "{$this->baseUrl}/invoice/send";
 
+        try {
             $response = $this->client()
-                ->post("{$this->baseUrl}/invoice/send", $payload);
+                ->post($endpoint, $payload);
 
             if (!$response->successful()) {
-                throw new Exception('Error APISPERU: ' . $response->body());
+                return [
+                    'success' => false,
+                    'message' => 'Error APISPERU: ' . $response->body(),
+                    'endpoint' => $endpoint,
+                    'http_status' => $response->status(),
+                    'response_body' => $response->body(),
+                    'response_json' => $response->json(),
+                    'error_message' => $response->body(),
+                    'exception_message' => null,
+                ];
             }
 
             return [
                 'success' => true,
                 'data' => $response->json(),
+                'endpoint' => $endpoint,
+                'http_status' => $response->status(),
+                'response_body' => $response->body(),
+                'response_json' => $response->json(),
+                'error_message' => null,
+                'exception_message' => null,
             ];
         } catch (Exception $e) {
-
             return [
                 'success' => false,
                 'message' => $e->getMessage(),
+                'endpoint' => $endpoint,
+                'http_status' => null,
+                'response_body' => null,
+                'response_json' => null,
+                'error_message' => null,
+                'exception_message' => $e->getMessage(),
             ];
         }
     }

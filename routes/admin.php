@@ -167,6 +167,11 @@ Route::resource('holidays', HolidayController::class)->except(['create']);
 
 Route::get('invoices/list', [InvoiceController::class, 'list'])->name('invoices.list');
 
+Route::get(
+    'invoices/{invoice}/api-logs',
+    [InvoiceController::class, 'apiLogs']
+)->name('invoices.apiLogs');
+
 Route::post(
     'invoices/{payment}/generate',
     [InvoiceController::class, 'generate']
