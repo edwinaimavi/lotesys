@@ -20,6 +20,7 @@ use Carbon\Carbon;
 use App\Models\Holiday;
 
 use App\Services\ApisPeruService;
+use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
 {
@@ -83,21 +84,7 @@ class PaymentController extends Controller
             })
 
             ->addColumn('installment', function ($payment) {
-
-                if ($payment->details->isEmpty()) {
-                    return '—';
-                }
-
-                $installments = $payment->details
-                    ->map(function ($detail) {
-
-                        return 'CUOTA #' .
-                            $detail->paymentSchedule?->installment_number;
-                    })
-                    ->unique()
-                    ->implode(', ');
-
-                return $installments ?: '—';
+                return $this->formatPaymentInstallmentVisualLabels($payment);
             })
 
             ->editColumn('payment_date', function ($payment) {
@@ -148,9 +135,11 @@ class PaymentController extends Controller
 
             ->addColumn('acciones', function ($payment) {
 
+                $installmentLabel = $this->formatPaymentInstallmentVisualLabels($payment);
+
                 return view(
                     'admin.payments.partials.acciones',
-                    compact('payment')
+                    compact('payment', 'installmentLabel')
                 )->render();
             })
 
@@ -184,7 +173,7 @@ class PaymentController extends Controller
             'amount' => [
                 'required',
                 'numeric',
-                'min:0'
+                'gt:0'
             ],
 
             'late_fee_paid' => [
@@ -231,11 +220,95 @@ class PaymentController extends Controller
                 'min:1'
             ],
 
+            'payment_details.*.payment_schedule_id' => [
+                'required',
+                'integer',
+                'distinct',
+                'exists:payment_schedules,id'
+            ],
+
+            'payment_details.*.applied_amount' => [
+                'required',
+                'numeric',
+                'gt:0'
+            ],
+
         ]);
+
+        $paymentDetails = array_values($data['payment_details']);
+        $lateFeePaid = round((float) ($data['late_fee_paid'] ?? 0), 2);
+        $appliedTotal = round(collect($paymentDetails)
+            ->sum(fn($detail) => (float) $detail['applied_amount']), 2);
+        $expectedAmount = round($appliedTotal + $lateFeePaid, 2);
+
+        if (abs((float) $data['amount'] - $expectedAmount) > 0.01) {
+            throw ValidationException::withMessages([
+                'amount' => 'El monto total debe coincidir con la suma de los montos aplicados y la mora.'
+            ]);
+        }
+
+        $data['amount'] = $expectedAmount;
 
         try {
 
             DB::beginTransaction();
+
+            $scheduleIds = collect($paymentDetails)
+                ->pluck('payment_schedule_id');
+
+            $schedules = PaymentSchedule::with('sale.lateFeeSetting')
+                ->whereIn('id', $scheduleIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            $activeAppliedAmounts = PaymentDetail::whereIn(
+                'payment_schedule_id',
+                $scheduleIds
+            )
+                ->whereHas('payment', function ($query) {
+                    $query->where('status', 'activo');
+                })
+                ->selectRaw('payment_schedule_id, SUM(applied_amount) as total_applied')
+                ->groupBy('payment_schedule_id')
+                ->pluck('total_applied', 'payment_schedule_id');
+
+            foreach ($paymentDetails as $detail) {
+                $schedule = $schedules->get($detail['payment_schedule_id']);
+
+                if (!$schedule || (int) $schedule->sale_id !== (int) $data['sale_id']) {
+                    throw ValidationException::withMessages([
+                        'payment_details' => 'Todas las cuotas deben pertenecer a la venta seleccionada.'
+                    ]);
+                }
+
+                $alreadyApplied = (float) (
+                    $activeAppliedAmounts[$schedule->id] ?? 0
+                );
+                $pendingAmount = max(
+                    round((float) $schedule->total_amount - $alreadyApplied, 2),
+                    0
+                );
+                $appliedAmount = round((float) $detail['applied_amount'], 2);
+
+                if ($schedule->status === 'pagado' || $pendingAmount <= 0) {
+                    throw ValidationException::withMessages([
+                        'payment_details' => $this->formatInstallmentVisualLabel(
+                            $schedule->installment_number
+                        ) . ' ya se encuentra pagada.'
+                    ]);
+                }
+
+                if ($appliedAmount - $pendingAmount > 0.01) {
+                    throw ValidationException::withMessages([
+                        'payment_details' => 'El monto aplicado a ' .
+                            $this->formatInstallmentVisualLabel(
+                                $schedule->installment_number
+                            ) . ' no puede superar su saldo pendiente de S/ ' .
+                            number_format($pendingAmount, 2, '.', ',') . '.'
+                    ]);
+                }
+            }
 
             // =====================================================
             // USUARIO
@@ -259,8 +332,7 @@ class PaymentController extends Controller
 
                 // cuota principal referencial
                 'payment_schedule_id' =>
-                $request->payment_details[0]['payment_schedule_id']
-                    ?? null,
+                $paymentDetails[0]['payment_schedule_id'],
 
                 'payment_type'      => $data['payment_type'],
                 'payment_date'      => $data['payment_date'],
@@ -283,7 +355,7 @@ class PaymentController extends Controller
             // GUARDAR DETALLES
             // =====================================================
 
-            foreach ($request->payment_details as $detail) {
+            foreach ($paymentDetails as $detail) {
 
                 $scheduleId = $detail['payment_schedule_id'];
 
@@ -311,9 +383,7 @@ class PaymentController extends Controller
                 // ACTUALIZAR CRONOGRAMA
                 // =================================================
 
-                $schedule = PaymentSchedule::with(
-                    'sale.lateFeeSetting'
-                )->find($scheduleId);
+                $schedule = $schedules->get($scheduleId);
 
                 if ($schedule) {
 
@@ -321,18 +391,18 @@ class PaymentController extends Controller
                     $totalCapitalPaid = PaymentDetail::where(
                         'payment_schedule_id',
                         $schedule->id
-                    )->sum('applied_amount');
+                    )
+                        ->whereHas('payment', function ($query) {
+                            $query->where('status', 'activo');
+                        })
+                        ->sum('applied_amount');
 
-                    $totalLateFeePaid = PaymentDetail::where(
-                        'payment_details.payment_schedule_id',
+                    $totalLateFeePaid = Payment::where(
+                        'payment_schedule_id',
                         $schedule->id
                     )
-                        ->whereHas('payment', function ($q) {
-
-                            $q->where('status', 'activo');
-                        })
-                        ->join('payments', 'payments.id', '=', 'payment_details.payment_id')
-                        ->sum('payments.late_fee_paid');
+                        ->where('status', 'activo')
+                        ->sum('late_fee_paid');
 
                     $totalPaid = $totalCapitalPaid + $totalLateFeePaid;
 
@@ -413,6 +483,11 @@ class PaymentController extends Controller
                 'data' => $payment
 
             ], 201);
+        } catch (ValidationException $e) {
+
+            DB::rollBack();
+
+            throw $e;
         } catch (\Throwable $e) {
 
             DB::rollBack();
@@ -702,9 +777,19 @@ class PaymentController extends Controller
                 'parcial',
                 'vencido'
             ])
-            ->where('remaining_balance', '>', 0)
             ->orderBy('installment_number')
             ->get();
+
+        $activeAppliedAmounts = PaymentDetail::whereIn(
+            'payment_schedule_id',
+            $schedules->pluck('id')
+        )
+            ->whereHas('payment', function ($query) {
+                $query->where('status', 'activo');
+            })
+            ->selectRaw('payment_schedule_id, SUM(applied_amount) as total_applied')
+            ->groupBy('payment_schedule_id')
+            ->pluck('total_applied', 'payment_schedule_id');
 
         foreach ($schedules as $schedule) {
 
@@ -713,13 +798,54 @@ class PaymentController extends Controller
             );
 
             $schedule->late_fee = round($lateFee, 2);
+            $schedule->pending_amount = max(
+                round(
+                    (float) $schedule->total_amount -
+                        (float) ($activeAppliedAmounts[$schedule->id] ?? 0),
+                    2
+                ),
+                0
+            );
             $schedule->total_real = round(
-                $schedule->total_amount + $schedule->late_fee,
+                $schedule->pending_amount + $schedule->late_fee,
                 2
+            );
+            $schedule->installment_label = $this->formatInstallmentVisualLabel(
+                $schedule->installment_number
             );
         }
 
-        return response()->json($schedules);
+        return response()->json(
+            $schedules
+                ->filter(fn($schedule) => $schedule->pending_amount > 0)
+                ->values()
+        );
+    }
+
+    private function formatPaymentInstallmentVisualLabels(Payment $payment): string
+    {
+        $installments = $payment->details
+            ->map(function ($detail) {
+                $installmentNumber = $detail->paymentSchedule?->installment_number;
+
+                return $installmentNumber === null
+                    ? null
+                    : $this->formatInstallmentVisualLabel($installmentNumber);
+            })
+            ->filter()
+            ->unique()
+            ->implode(', ');
+
+        return $installments ?: '—';
+    }
+
+    private function formatInstallmentVisualLabel($installmentNumber): string
+    {
+        $visualNumber = ((int) $installmentNumber) + 1;
+
+        return (int) $installmentNumber === 0
+            ? 'Cuota ' . $visualNumber . ' - Inicial'
+            : 'Cuota ' . $visualNumber;
     }
 
     private function calculateLateFeeForSchedule(PaymentSchedule $schedule): float
@@ -900,16 +1026,12 @@ class PaymentController extends Controller
                     })
                     ->sum('applied_amount');
 
-                $totalLateFeePaid = PaymentDetail::where(
-                    'payment_details.payment_schedule_id',
+                $totalLateFeePaid = Payment::where(
+                    'payment_schedule_id',
                     $schedule->id
                 )
-                    ->whereHas('payment', function ($q) {
-
-                        $q->where('status', 'activo');
-                    })
-                    ->join('payments', 'payments.id', '=', 'payment_details.payment_id')
-                    ->sum('payments.late_fee_paid');
+                    ->where('status', 'activo')
+                    ->sum('late_fee_paid');
 
                 $totalPaid = $totalCapitalPaid + $totalLateFeePaid;
 

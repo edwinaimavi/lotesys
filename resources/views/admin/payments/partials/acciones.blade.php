@@ -3,7 +3,7 @@
     {{-- VER --}}
     <button type="button" class="btn btn-outline-info btn-sm viewPayment mr-2" data-toggle="tooltip" title="Ver Pago"
         data-id="{{ $payment->id }}" data-sale="{{ $payment->sale->sale_code ?? '—' }}"
-        data-installment="{{ $payment->installment_label ?? '—' }}" data-payment_type="{{ $payment->payment_type }}"
+        data-installment="{{ $installmentLabel }}" data-payment_type="{{ $payment->payment_type }}"
         data-payment_date="{{ $payment->payment_date }}" data-amount="{{ $payment->amount }}"
         data-late_fee_paid="{{ $payment->late_fee_paid }}" data-discount="{{ $payment->discount }}"
         data-payment_method="{{ $payment->payment_method }}" data-operation_number="{{ $payment->operation_number }}"

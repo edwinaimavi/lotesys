@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceApiLog;
 use App\Models\Sale;
 use App\Models\Payment;
+use App\Models\PaymentDetail;
 use App\Models\Company;
 
 use App\Services\ApisPeruService;
@@ -110,47 +111,7 @@ class InvoiceController extends Controller
 
     public function getPaymentDescription(Payment $payment)
     {
-        $payment->load([
-            'details.paymentSchedule',
-            'sale.lot.block.project'
-        ]);
-
-        // ==========================================
-        // CUOTAS
-        // ==========================================
-
-        $installments = $payment->details
-            ->sortBy(function ($detail) {
-                return $detail->paymentSchedule->installment_number;
-            })
-            ->map(function ($detail) {
-
-                $number = $detail->paymentSchedule->installment_number;
-
-                if ((int)$number === 0) {
-                    return 'CUOTA INICIAL';
-                }
-
-                return 'CUOTA #' . $number;
-            })
-            ->implode(', ');
-
-        // ==========================================
-        // DATOS DEL LOTE
-        // ==========================================
-
-        $lot = $payment->sale->lot;
-        $block = $lot?->block;
-        $project = $block?->project;
-
-        $description =
-            $installments .
-            ' ' .
-            ($block->name ?? '') .
-            ' - LT' .
-            ($lot->number ?? '') .
-            ' ' .
-            strtoupper($project->name ?? '');
+        $description = $this->buildPaymentDescription($payment);
 
         // ==========================================
         // LEYENDA SUNAT
@@ -171,10 +132,98 @@ class InvoiceController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'description' => trim($description),
+                'description' => $description,
                 'legend' => $legend
             ]
         ]);
+    }
+
+    private function buildPaymentDescription(Payment $payment): string
+    {
+        $payment->loadMissing([
+            'details.paymentSchedule',
+            'sale.lot.block.project'
+        ]);
+
+        $lot = $payment->sale->lot;
+        $block = $lot?->block;
+        $project = $block?->project;
+        $blockName = trim($block->name ?? '');
+        $blockLabel = str_starts_with(strtoupper($blockName), 'MZ')
+            ? $blockName
+            : 'MZ ' . $blockName;
+        $location = trim(
+            $blockLabel .
+                ' - LT' . ($lot->number ?? '') .
+                ' ' . strtoupper($project->name ?? '')
+        );
+
+        $details = $payment->details
+            ->sortBy(function ($detail) {
+                return $detail->paymentSchedule->installment_number;
+            })
+            ->values();
+        $hasMultipleDetails = $details->count() > 1;
+
+        $installments = $details
+            ->map(function ($detail, $index) use (
+                $payment,
+                $location,
+                $hasMultipleDetails
+            ) {
+
+                $schedule = $detail->paymentSchedule;
+                $number = $schedule->installment_number;
+                $appliedAmount = round((float) $detail->applied_amount, 2);
+
+                $previouslyApplied = (float) PaymentDetail::where(
+                    'payment_schedule_id',
+                    $schedule->id
+                )
+                    ->where('payment_id', '<', $payment->id)
+                    ->whereHas('payment', function ($query) {
+                        $query->where('status', 'activo');
+                    })
+                    ->sum('applied_amount');
+
+                $pendingBeforePayment = max(
+                    round((float) $schedule->total_amount - $previouslyApplied, 2),
+                    0
+                );
+                $lateFeeApplied = (int) $payment->payment_schedule_id ===
+                    (int) $schedule->id
+                    ? (float) $payment->late_fee_paid
+                    : 0;
+                $coversPendingAmount =
+                    $appliedAmount + 0.01 >= $pendingBeforePayment;
+                $coversLateFee =
+                    $lateFeeApplied + 0.01 >= (float) $schedule->late_fee;
+
+                if ($coversPendingAmount && $coversLateFee) {
+                    $paymentLabel = 'PAGO';
+                } elseif ($hasMultipleDetails && $index > 0) {
+                    $paymentLabel = 'ADELANTO';
+                } else {
+                    $paymentLabel = 'PAGO PARCIAL';
+                }
+
+                return $paymentLabel . ' ' .
+                    $this->formatInstallmentVisualLabel($number) . ' ' .
+                    $location . ' S/ ' .
+                    number_format($appliedAmount, 2, '.', ',');
+            })
+            ->implode(' / ');
+
+        return trim($installments);
+    }
+
+    private function formatInstallmentVisualLabel($installmentNumber): string
+    {
+        $visualNumber = ((int) $installmentNumber) + 1;
+
+        return (int) $installmentNumber === 0
+            ? 'CUOTA ' . $visualNumber . ' - INICIAL'
+            : 'CUOTA ' . $visualNumber;
     }
 
     public function getCompanies()
@@ -758,8 +807,11 @@ class InvoiceController extends Controller
             $payment = Payment::with([
                 'sale.customer',
                 'sale.lot.block.project',
+                'details.paymentSchedule',
                 'invoice'
             ])->findOrFail($data['payment_id']);
+
+            $data['description'] = $this->buildPaymentDescription($payment);
 
             $hasSunat = Invoice::where(
                 'payment_id',

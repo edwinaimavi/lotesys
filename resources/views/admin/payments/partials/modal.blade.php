@@ -350,13 +350,18 @@
 
                                         <label for="amount" class="small font-weight-bold text-secondary">
 
-                                            MONTO
+                                            MONTO TOTAL DEL PAGO
                                             <span class="text-danger">*</span>
 
                                         </label>
 
                                         <input type="number" step="0.01" min="0" id="amount"
-                                            name="amount" class="form-control form-control-sm" placeholder="0.00">
+                                            name="amount" class="form-control form-control-sm" placeholder="0.00"
+                                            readonly>
+
+                                        <small class="form-text text-muted">
+                                            Calculado automáticamente desde los montos aplicados y la mora pagada.
+                                        </small>
 
                                         <span class="invalid-feedback" id="amount-error"></span>
 

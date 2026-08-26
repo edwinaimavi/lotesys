@@ -190,6 +190,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         e.preventDefault();
 
+        if (!$(this).attr('data-id') && !validatePaymentDetails()) {
+            return;
+        }
+
         const btn = $('#btnSavePayment');
 
         if (btn.prop('disabled')) {
@@ -292,6 +296,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (xhr.status === 422) {
 
                     const errors = xhr.responseJSON.errors || {};
+                    const firstMessage = Object.values(errors)[0]?.[0];
 
                     $('.is-invalid').removeClass('is-invalid');
 
@@ -306,6 +311,18 @@ document.addEventListener("DOMContentLoaded", function () {
                         $(`#${key}-error`).text(messages[0]);
 
                     });
+
+                    if (firstMessage) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Revise el pago',
+                            text: firstMessage,
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 4000
+                        });
+                    }
 
                 } else {
 
@@ -662,21 +679,33 @@ $('#sale_id').on('change', function () {
 
             response.forEach(schedule => {
 
+                const pendingAmount = parseFloat(
+                    schedule.pending_amount ?? schedule.total_amount ?? 0
+                );
                 const totalReal =
-                    parseFloat(schedule.total_amount || 0) +
+                    pendingAmount +
                     parseFloat(schedule.late_fee || 0);
+
+                const installmentNumber =
+                    parseInt(schedule.installment_number, 10);
+                const visualNumber = installmentNumber + 1;
+                const installmentLabel = schedule.installment_label ||
+                    (installmentNumber === 0
+                        ? `Cuota ${visualNumber} - Inicial`
+                        : `Cuota ${visualNumber}`);
 
                 options += `
                     <option 
                         value="${schedule.id}"
-                        data-amount="${schedule.total_amount}"
+                        data-pending-amount="${pendingAmount}"
                         data-late_fee="${schedule.late_fee}"
+                        data-installment-label="${installmentLabel}"
                     >
-                        Cuota #${schedule.installment_number}
+                        ${installmentLabel}
                         - Vence: ${schedule.due_date}
                         - Total: S/ ${totalReal.toFixed(2)}
                         - Mora: S/ ${parseFloat(schedule.late_fee || 0).toFixed(2)}
-                        - Saldo: S/ ${parseFloat(schedule.remaining_balance || 0).toFixed(2)}
+                        - Saldo: S/ ${pendingAmount.toFixed(2)}
                     </option>
                 `;
             });
@@ -691,7 +720,9 @@ $('#sale_id').on('change', function () {
 
                 const lateFee = parseFloat(selected.data('late_fee') || 0);
 
-                $('#late_fee_paid').val(lateFee.toFixed(2));
+                if (!$('#paymentDetailsBody tr[data-schedule-id]').length) {
+                    $('#late_fee_paid').val(lateFee.toFixed(2));
+                }
 
                 recalculateTotalPayment();
             });
@@ -733,6 +764,81 @@ function recalculateTotalPayment() {
         total.toFixed(2)
     );
 
+}
+
+function syncPrincipalLateFee() {
+
+    const firstRow = $('#paymentDetailsBody tr[data-schedule-id]').first();
+
+    const lateFee = firstRow.length
+        ? parseFloat(firstRow.attr('data-late-fee') || 0)
+        : 0;
+
+    $('#late_fee_paid').val(lateFee.toFixed(2));
+}
+
+function validatePaymentDetails() {
+
+    const rows = $('#paymentDetailsBody tr[data-schedule-id]');
+
+    if (!rows.length) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Agregue al menos una cuota',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000
+        });
+
+        return false;
+    }
+
+    let errorMessage = '';
+
+    rows.each(function () {
+        const row = $(this);
+        const label = row.attr('data-installment-label') || 'la cuota';
+        const pendingAmount = parseFloat(
+            row.attr('data-pending-amount') || 0
+        );
+        const appliedAmount = parseFloat(
+            row.find('.applied-amount').val() || 0
+        );
+
+        if (appliedAmount <= 0) {
+            errorMessage = `El monto aplicado a ${label} debe ser mayor que cero.`;
+            return false;
+        }
+
+        if (appliedAmount - pendingAmount > 0.01) {
+            errorMessage = `El monto aplicado a ${label} no puede superar ` +
+                `su saldo de S/ ${pendingAmount.toFixed(2)}.`;
+            return false;
+        }
+    });
+
+    recalculateTotalPayment();
+
+    if (!errorMessage && parseFloat($('#amount').val() || 0) <= 0) {
+        errorMessage = 'El monto total del pago debe ser mayor que cero.';
+    }
+
+    if (errorMessage) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Revise el pago',
+            text: errorMessage,
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 4000
+        });
+
+        return false;
+    }
+
+    return true;
 }
 
 // =========================================================
@@ -790,10 +896,11 @@ $(document).on('click', '#btnAddInstallment', function () {
 
     $('.empty-row').remove();
 
-    const installment = selected.text();
+    const installment = selected.attr('data-installment-label') ||
+        selected.text().trim();
 
     const balance = parseFloat(
-        selected.data('amount') || 0
+        selected.data('pending-amount') || 0
     );
 
     const lateFee = parseFloat(
@@ -801,7 +908,10 @@ $(document).on('click', '#btnAddInstallment', function () {
     );
 
     const row = `
-        <tr data-schedule-id="${scheduleId}">
+        <tr data-schedule-id="${scheduleId}"
+            data-installment-label="${installment}"
+            data-pending-amount="${balance.toFixed(2)}"
+            data-late-fee="${lateFee.toFixed(2)}">
 
             <td>
 
@@ -821,12 +931,23 @@ $(document).on('click', '#btnAddInstallment', function () {
 
             <td>
 
-                <input type="number"
-                    step="0.01"
-                    min="0"
-                    class="form-control form-control-sm applied-amount"
-                    name="payment_details[${scheduleId}][applied_amount]"
-                    value="${balance.toFixed(2)}">
+                <div class="input-group input-group-sm">
+
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">S/</span>
+                    </div>
+
+                    <input type="number"
+                        step="0.01"
+                        min="0.01"
+                        max="${balance.toFixed(2)}"
+                        inputmode="decimal"
+                        aria-label="Monto aplicado a ${installment}"
+                        class="form-control form-control-sm text-right applied-amount"
+                        name="payment_details[${scheduleId}][applied_amount]"
+                        value="${balance.toFixed(2)}">
+
+                </div>
 
             </td>
 
@@ -852,6 +973,7 @@ $(document).on('click', '#btnAddInstallment', function () {
 
     $('#paymentDetailsBody').append(row);
 
+    syncPrincipalLateFee();
     recalculateTotalPayment();
 
 });
@@ -878,6 +1000,7 @@ $(document).on('click', '.remove-detail', function () {
 
     }
 
+    syncPrincipalLateFee();
     recalculateTotalPayment();
 
 });
@@ -890,6 +1013,34 @@ $(document).on('keyup change', '.applied-amount', function () {
 
     recalculateTotalPayment();
 
+});
+
+$(document).on('keyup change', '#late_fee_paid', function () {
+
+    recalculateTotalPayment();
+
+});
+
+$(document).on('change blur', '.applied-amount', function () {
+
+    const input = $(this);
+    const pendingAmount = parseFloat(input.attr('max') || 0);
+    const appliedAmount = parseFloat(input.val() || 0);
+
+    if (appliedAmount - pendingAmount > 0.01) {
+        input.val(pendingAmount.toFixed(2));
+        recalculateTotalPayment();
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Monto ajustado',
+            text: `No puede aplicar más de S/ ${pendingAmount.toFixed(2)} a esta cuota.`,
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3500
+        });
+    }
 });
 
 function togglePaymentFields() {
