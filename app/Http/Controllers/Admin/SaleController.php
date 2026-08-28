@@ -169,6 +169,47 @@ class SaleController extends Controller
     }
 
     /**
+     * LOTES DISPONIBLES PARA CREAR O EDITAR UNA VENTA
+     */
+    public function availableLots(Request $request)
+    {
+        $data = $request->validate([
+            'selected_lot_id' => [
+                'nullable',
+                'integer',
+                'exists:lots,id'
+            ]
+        ]);
+
+        $selectedLotId = $data['selected_lot_id'] ?? null;
+
+        $lots = Lot::with('project')
+            ->where(function ($query) use ($selectedLotId) {
+                $query->where('status', 'disponible');
+
+                if ($selectedLotId) {
+                    $query->orWhere('id', $selectedLotId);
+                }
+            })
+            ->orderBy('code')
+            ->get();
+
+        return response()->json(
+            $lots->map(function ($lot) {
+                $projectName = $lot->project?->name;
+
+                return [
+                    'id' => $lot->id,
+                    'text' => $lot->code
+                        . ($projectName ? ' - ' . $projectName : ''),
+                    'cash_price' => $lot->cash_price,
+                    'financed_price' => $lot->financed_price
+                ];
+            })->values()
+        );
+    }
+
+    /**
      * STORE
      */
     public function store(Request $request)

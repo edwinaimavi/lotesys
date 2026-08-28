@@ -98,6 +98,11 @@ Route::get(
     [SaleController::class, 'generateCode']
 )->name('sales.generate.code');
 
+Route::get(
+    'sales/available-lots',
+    [SaleController::class, 'availableLots']
+)->name('sales.available.lots');
+
 
 
 Route::resource('sales', SaleController::class)

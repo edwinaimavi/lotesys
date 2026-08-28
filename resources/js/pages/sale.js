@@ -92,6 +92,68 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================
+    // CARGAR LOTES SEGUN EL MODO DEL FORMULARIO
+    // =========================================================
+
+    function loadAvailableLots(selectedLotId = null) {
+
+        const $lotSelect = $('#lot_id');
+
+        const data = {};
+
+        if (selectedLotId) {
+            data.selected_lot_id = selectedLotId;
+        }
+
+        $lotSelect
+            .prop('disabled', true)
+            .empty()
+            .append(new Option('Seleccione un lote', ''));
+
+        return $.ajax({
+
+            url: window.routes.availableLots,
+
+            type: 'GET',
+
+            data: data
+
+        }).done(function (lots) {
+
+            lots.forEach(function (lot) {
+
+                const option = new Option(
+                    lot.text,
+                    lot.id,
+                    false,
+                    false
+                );
+
+                $(option)
+                    .attr('data-cash_price', lot.cash_price)
+                    .attr('data-financed_price', lot.financed_price);
+
+                $lotSelect.append(option);
+
+            });
+
+            $lotSelect.val(
+                selectedLotId ? String(selectedLotId) : ''
+            ).trigger('change');
+
+        }).fail(function (xhr) {
+
+            console.error('Error loading available lots', xhr);
+
+        }).always(function () {
+
+            $lotSelect.prop('disabled', false);
+
+        });
+
+    }
+
+    // =========================================================
     // CALCULAR SALDO
     // =========================================================
 
@@ -273,6 +335,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
             generateSaleCode();
 
+            loadAvailableLots();
+
         }
 
         initSaleSelect2();
@@ -444,15 +508,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
     $(document).on('click', '.editSale', function () {
 
-        const id = $(this).data('id');
+        const $button = $(this);
+
+        const id = $button.data('id');
+
+        const lotId = $button.data('lot_id');
 
         $('#saleForm').attr('data-id', id);
 
         $('#sale_code').val($(this).data('sale_code'));
 
         $('#customer_id').val($(this).data('customer_id'));
-
-        $('#lot_id').val($(this).data('lot_id'));
 
         $('#sale_type').val($(this).data('sale_type'));
 
@@ -504,7 +570,29 @@ document.addEventListener("DOMContentLoaded", function () {
 
         $('#saleModalLabel').html('EDITAR VENTA');
 
-        $('#saleModal').modal('show');
+        loadAvailableLots(lotId).done(function () {
+
+            // El cambio del lote actualiza Select2 y sus precios asociados.
+            // Restauramos los importes guardados para no alterar la venta.
+            $('#lot_price').val($button.data('lot_price'));
+
+            $('#initial_payment').val($button.data('initial_payment'));
+
+            $('#balance_finance').val($button.data('balance_finance'));
+
+            $('#installments_count').val($button.data('installments_count'));
+
+            $('#monthly_payment').val($button.data('monthly_payment'));
+
+            $('#interest_rate').val($button.data('interest_rate'));
+
+            $('#first_payment_date').val($button.data('first_payment_date'));
+
+            $('#payment_day').val($button.data('payment_day'));
+
+            $('#saleModal').modal('show');
+
+        });
 
     });
 

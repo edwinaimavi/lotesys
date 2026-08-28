@@ -196,6 +196,8 @@
             deleteSale: "{{ url('admin/sales') }}",
 
             generateSaleCode: "{{ route('admin.sales.generate.code') }}",
+
+            availableLots: "{{ route('admin.sales.available.lots') }}",
             
             paymentSchedule: "{{ url('admin/sales') }}",
 
