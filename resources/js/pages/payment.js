@@ -2,6 +2,16 @@ var divLoading = document.getElementById('divLoading');
 
 let tablePayment;
 
+function formatPaymentDateForDisplay(dateValue) {
+    const dateParts = String(dateValue || '').split('T')[0].split('-');
+
+    if (dateParts.length !== 3) {
+        return dateValue || 'â€”';
+    }
+
+    return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+}
+
 $(function () {
     $('[data-toggle="tooltip"]').tooltip();
 });
@@ -702,7 +712,7 @@ $('#sale_id').on('change', function () {
                         data-installment-label="${installmentLabel}"
                     >
                         ${installmentLabel}
-                        - Vence: ${schedule.due_date}
+                        - Vence: ${formatPaymentDateForDisplay(schedule.due_date)}
                         - Total: S/ ${totalReal.toFixed(2)}
                         - Mora: S/ ${parseFloat(schedule.late_fee || 0).toFixed(2)}
                         - Saldo: S/ ${pendingAmount.toFixed(2)}

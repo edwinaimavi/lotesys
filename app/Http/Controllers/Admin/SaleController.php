@@ -961,7 +961,7 @@ class SaleController extends Controller
                     'schedule_type' => 'cuota',
                     'installment_number' => $i,
                     'due_date' => $fechaPago->copy()
-                        ->addMonths($i - 1)
+                        ->addMonthsNoOverflow($i)
                         ->format('Y-m-d'),
                     'installment_amount' => round($totalCuota, 2),
                     'capital' => round($capitalCuota, 2),
@@ -995,7 +995,7 @@ class SaleController extends Controller
                     'schedule_type' => 'cuota',
                     'installment_number' => $i,
                     'due_date' => $fechaPago->copy()
-                        ->addMonths($i - 1)
+                        ->addMonthsNoOverflow($i)
                         ->format('Y-m-d'),
                     'installment_amount' => round($totalCuota, 2),
                     'capital' => round($capitalCuota, 2),

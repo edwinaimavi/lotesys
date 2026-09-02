@@ -2,6 +2,16 @@ var divLoading = document.getElementById('divLoading');
 
 let tableSale;
 
+function formatSaleDateForDisplay(dateValue) {
+    const dateParts = String(dateValue || '').split('T')[0].split('-');
+
+    if (dateParts.length !== 3) {
+        return dateValue || 'â€”';
+    }
+
+    return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+}
+
 $(function () {
     $('[data-toggle="tooltip"]').tooltip();
 });
@@ -1541,7 +1551,12 @@ document.addEventListener("DOMContentLoaded", function () {
                         // =========================================
                         const scheduleType = item.schedule_type || 'cuota';
 
-                        let cuotaLabel = `Cuota ${item.installment_number}`;
+                        const installmentNumber = parseInt(
+                            item.installment_number,
+                            10
+                        );
+                        const visualNumber = installmentNumber + 1;
+                        let cuotaLabel = `Cuota ${visualNumber}`;
 
                         // =====================================
                         // INICIAL
@@ -1549,7 +1564,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                         if (scheduleType === 'inicial') {
 
-                            cuotaLabel = 'Cuota Inicial';
+                            cuotaLabel = `Cuota ${visualNumber} - Inicial`;
 
                         }
 
@@ -1576,7 +1591,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             </td>
 
                             <td>
-                                ${item.due_date}
+                                ${formatSaleDateForDisplay(item.due_date)}
                             </td>
 
                             <td class="text-primary font-weight-bold">
