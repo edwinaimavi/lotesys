@@ -25,9 +25,13 @@ class InvoiceController extends Controller
 
     public function getNextNumber(Request $request)
     {
-        $documentType = $request->document_type;
+        $data = $request->validate([
+            'document_type' => 'required|in:receipt,invoice,sale_note',
+            'company_id' => 'required|exists:companies,id',
+        ]);
 
-        $companyId = $request->company_id;
+        $documentType = $data['document_type'];
+        $companyId = $data['company_id'];
 
         switch ($documentType) {
             case 'invoice':
@@ -43,25 +47,90 @@ class InvoiceController extends Controller
                 break;
         }
 
-        $query = Invoice::where('document_type', $documentType)
-            ->where('series', $series);
-
-        if ($companyId) {
-            $query->where('company_id', $companyId);
-        }
-
-        $lastInvoice = $query
-            ->orderByDesc('number')
-            ->first();
-
-        $number = $lastInvoice
-            ? ((int) $lastInvoice->number + 1)
-            : 1;
+        $number = $this->calculateNextInvoiceNumber(
+            $companyId,
+            $documentType,
+            $series
+        );
 
         return response()->json([
             'series' => $series,
             'number' => $number
         ]);
+    }
+
+    private function calculateNextInvoiceNumber(
+        int $companyId,
+        string $documentType,
+        string $series
+    ): int {
+        $maxNumber = Invoice::where('company_id', $companyId)
+            ->where('document_type', $documentType)
+            ->where('series', $series)
+            ->max(DB::raw('CAST(number AS UNSIGNED)'));
+
+        return ((int) $maxNumber) + 1;
+    }
+
+    private function lockInvoiceSequence(
+        int $companyId,
+        string $documentType,
+        string $series
+    ): void {
+        Invoice::where('company_id', $companyId)
+            ->where('document_type', $documentType)
+            ->where('series', $series)
+            ->lockForUpdate()
+            ->get(['id']);
+    }
+
+    private function allocateNextInvoiceNumber(
+        int $companyId,
+        string $documentType,
+        string $series
+    ): int {
+        $this->lockInvoiceSequence($companyId, $documentType, $series);
+
+        $number = $this->calculateNextInvoiceNumber(
+            $companyId,
+            $documentType,
+            $series
+        );
+
+        if (! $this->invoiceNumberExists($companyId, $documentType, $series, $number)) {
+            return $number;
+        }
+
+        $collision = $series . '-' . $number;
+        $number = $this->calculateNextInvoiceNumber(
+            $companyId,
+            $documentType,
+            $series
+        );
+
+        if ($this->invoiceNumberExists($companyId, $documentType, $series, $number)) {
+            $collision = $series . '-' . $number;
+
+            throw new \RuntimeException(
+                "Ya existe un comprobante con la serie y número {$collision}. " .
+                'Se recalculó el correlativo, intente nuevamente.'
+            );
+        }
+
+        return $number;
+    }
+
+    private function invoiceNumberExists(
+        int $companyId,
+        string $documentType,
+        string $series,
+        int $number
+    ): bool {
+        return Invoice::where('company_id', $companyId)
+            ->where('document_type', $documentType)
+            ->where('series', $series)
+            ->where('number', (string) $number)
+            ->exists();
     }
 
 
@@ -782,6 +851,9 @@ class InvoiceController extends Controller
     {
         $payload = null;
         $apiLog = null;
+        $invoice = null;
+        $pdfPath = null;
+        $xmlPath = null;
         $data = $request->validate([
             'payment_id'           => 'required|exists:payments,id',
             'sale_id'              => 'required|exists:sales,id',
@@ -854,56 +926,70 @@ class InvoiceController extends Controller
             // =========================================
 
             if ($data['document_type'] == 'sale_note') {
-
                 DB::beginTransaction();
 
-                $invoice = Invoice::updateOrCreate(
-                    [
-                        'payment_id' => $data['payment_id']
-                    ],
-                    [
-                        'sale_id'    => $data['sale_id'],
-                        'company_id' => $data['company_id'],
+                try {
+                    Company::whereKey($data['company_id'])
+                        ->lockForUpdate()
+                        ->firstOrFail();
 
-                        'document_type' => 'sale_note',
-                        'series'        => $data['series'],
-                        'number'        => $data['number'],
-                        'issue_date'    => now()->format('Y-m-d'),
+                    $data['number'] = $this->allocateNextInvoiceNumber(
+                        (int) $data['company_id'],
+                        $data['document_type'],
+                        $data['series']
+                    );
 
-                        'customer_document_type' =>
-                        strlen($data['customer_document']) == 11 ? '6' : '1',
+                    $invoice = Invoice::updateOrCreate(
+                        [
+                            'payment_id' => $data['payment_id']
+                        ],
+                        [
+                            'sale_id'    => $data['sale_id'],
+                            'company_id' => $data['company_id'],
 
-                        'customer_document'   => $data['customer_document'],
-                        'customer_name'       => $data['customer_name'],
-                        'customer_address'    => $data['customer_address'],
+                            'document_type' => 'sale_note',
+                            'series'        => $data['series'],
+                            'number'        => $data['number'],
+                            'issue_date'    => now()->format('Y-m-d'),
 
-                        'customer_department' => $data['customer_department'],
-                        'customer_province'   => $data['customer_province'],
-                        'customer_district'   => $data['customer_district'],
-                        'customer_ubigeo'     => $data['customer_ubigeo'],
+                            'customer_document_type' =>
+                            strlen($data['customer_document']) == 11 ? '6' : '1',
 
-                        'concept'      => $data['description'],
-                        'legend'       => null,
-                        'currency'     => 'PEN',
-                        'subtotal'     => $data['subtotal'],
-                        'tax_amount'   => 0,
-                        'total_amount' => $data['total_amount'],
+                            'customer_document'   => $data['customer_document'],
+                            'customer_name'       => $data['customer_name'],
+                            'customer_address'    => $data['customer_address'],
 
-                        'sunat_status' => 'accepted',
+                            'customer_department' => $data['customer_department'],
+                            'customer_province'   => $data['customer_province'],
+                            'customer_district'   => $data['customer_district'],
+                            'customer_ubigeo'     => $data['customer_ubigeo'],
 
-                        'hash_code'     => null,
-                        'sunat_ticket'  => null,
-                        'sunat_code'    => null,
-                        'sunat_message' => null,
-                        'pdf_path'      => null,
-                        'xml_path'      => null,
+                            'concept'      => $data['description'],
+                            'legend'       => null,
+                            'currency'     => 'PEN',
+                            'subtotal'     => $data['subtotal'],
+                            'tax_amount'   => 0,
+                            'total_amount' => $data['total_amount'],
 
-                        'created_by' => Auth::id(),
-                        'updated_by' => Auth::id(),
-                    ]
-                );
+                            'sunat_status' => 'accepted',
 
-                DB::commit();
+                            'hash_code'     => null,
+                            'sunat_ticket'  => null,
+                            'sunat_code'    => null,
+                            'sunat_message' => null,
+                            'pdf_path'      => null,
+                            'xml_path'      => null,
+
+                            'created_by' => Auth::id(),
+                            'updated_by' => Auth::id(),
+                        ]
+                    );
+
+                    DB::commit();
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
 
                 return response()->json([
                     'success'    => true,
@@ -927,6 +1013,71 @@ class InvoiceController extends Controller
             } else {
 
                 $customerTipoDoc = strlen($data['customer_document']) == 11 ? '6' : '1';
+            }
+
+            DB::beginTransaction();
+
+            try {
+                Company::whereKey($data['company_id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $hasSunat = Invoice::where('payment_id', $data['payment_id'])
+                    ->whereIn('document_type', ['receipt', 'invoice'])
+                    ->exists();
+
+                if ($hasSunat) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Este pago ya tiene un comprobante SUNAT emitido.'
+                    ], 422);
+                }
+
+                $data['number'] = $this->allocateNextInvoiceNumber(
+                    (int) $data['company_id'],
+                    $data['document_type'],
+                    $data['series']
+                );
+
+                $invoice = Invoice::create([
+                    'payment_id' => $data['payment_id'],
+                    'sale_id'    => $data['sale_id'],
+                    'company_id' => $data['company_id'],
+
+                    'document_type' => $data['document_type'],
+                    'series'        => $data['series'],
+                    'number'        => $data['number'],
+                    'issue_date'    => now()->format('Y-m-d'),
+
+                    'customer_document_type' => $customerTipoDoc,
+                    'customer_document'      => $data['customer_document'],
+                    'customer_name'          => $data['customer_name'],
+                    'customer_address'       => $data['customer_address'],
+
+                    'customer_department' => $data['customer_department'],
+                    'customer_province'   => $data['customer_province'],
+                    'customer_district'   => $data['customer_district'],
+                    'customer_ubigeo'     => $data['customer_ubigeo'],
+
+                    'concept'      => $data['description'],
+                    'legend'       => $data['legend'],
+                    'currency'     => 'PEN',
+                    'subtotal'     => $data['subtotal'],
+                    'tax_amount'   => $data['tax_amount'],
+                    'total_amount' => $data['total_amount'],
+
+                    'sunat_status' => 'pending',
+
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                ]);
+
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                throw $e;
             }
 
             $payload = [
@@ -1001,7 +1152,7 @@ class InvoiceController extends Controller
 
             $send = $apisPeru->sendInvoice($payload);
 
-            $apiLog = $this->storeApiLog(null, $payload, $send);
+            $apiLog = $this->storeApiLog($invoice, $payload, $send);
 
             if (! $send['success']) {
                 return response()->json([
@@ -1041,34 +1192,11 @@ class InvoiceController extends Controller
 
             DB::beginTransaction();
 
-            $invoice = Invoice::create([
+            $invoice = Invoice::whereKey($invoice->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-                'payment_id' => $data['payment_id'],
-                'sale_id'    => $data['sale_id'],
-                'company_id' => $data['company_id'],
-
-                'document_type' => $data['document_type'],
-                'series'        => $data['series'],
-                'number'        => $data['number'],
-                'issue_date'    => now()->format('Y-m-d'),
-
-                'customer_document_type' => $customerTipoDoc,
-                'customer_document'      => $data['customer_document'],
-                'customer_name'          => $data['customer_name'],
-                'customer_address'       => $data['customer_address'],
-
-                'customer_department' => $data['customer_department'],
-                'customer_province'   => $data['customer_province'],
-                'customer_district'   => $data['customer_district'],
-                'customer_ubigeo'     => $data['customer_ubigeo'],
-
-                'concept'      => $data['description'],
-                'legend'       => $data['legend'],
-                'currency'     => 'PEN',
-                'subtotal'     => $data['subtotal'],
-                'tax_amount'   => $data['tax_amount'],
-                'total_amount' => $data['total_amount'],
-
+            $invoice->update([
                 'sunat_status'  => 'accepted',
                 'hash_code'     => $send['data']['hash'] ?? null,
                 'sunat_ticket'  => $send['data']['ticket'] ?? null,
@@ -1081,10 +1209,6 @@ class InvoiceController extends Controller
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
             ]);
-
-            if ($apiLog) {
-                $apiLog->update(['invoice_id' => $invoice->id]);
-            }
 
             DB::commit();
 
@@ -1101,10 +1225,12 @@ class InvoiceController extends Controller
                 'invoice_id' => $invoice->id,
             ]);
         } catch (\Throwable $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
 
             if ($payload && ! $apiLog) {
-                $this->storeApiLog(null, $payload, [
+                $this->storeApiLog($invoice, $payload, [
                     'success' => false,
                     'endpoint' => null,
                     'http_status' => null,
