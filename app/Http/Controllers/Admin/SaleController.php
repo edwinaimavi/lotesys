@@ -27,7 +27,9 @@ class SaleController extends Controller
         $customers = Customer::where('status', 1)
             ->orderBy('first_name')
             ->get();
-        $lots = Lot::orderBy('code')->get();
+        $lots = Lot::with(['project.company', 'block'])
+            ->orderBy('code')
+            ->get();
 
         $lateFeeSettings = LateFeeSetting::where('status', 'activo')
             ->orderBy('grace_days')
@@ -47,7 +49,8 @@ class SaleController extends Controller
     {
         $sales = Sale::with(
             'customer',
-            'lot',
+            'lot.project.company',
+            'lot.block',
             'creator',
             'updater'
         )
@@ -72,9 +75,34 @@ class SaleController extends Controller
                 );
             })
 
-            ->addColumn('lot', function ($sale) {
+            ->addColumn('company', function ($sale) {
 
-                return $sale->lot->code ?? '—';
+                $company = $sale->lot?->project?->company;
+
+                return $company?->trade_name
+                    ?: ($company?->business_name ?? '—');
+            })
+
+            ->addColumn('project', function ($sale) {
+
+                return $sale->lot?->project?->name ?? '—';
+            })
+
+            ->addColumn('lot_location', function ($sale) {
+
+                if (!$sale->lot) {
+                    return '—';
+                }
+
+                $block = $sale->lot->block?->name ?? '—';
+                $number = $sale->lot->number ?? '—';
+
+                return $block . ' / LT ' . $number;
+            })
+
+            ->addColumn('lot_code', function ($sale) {
+
+                return $sale->lot?->code ?? '—';
             })
 
             ->editColumn('sale_date', function ($sale) {
@@ -183,7 +211,7 @@ class SaleController extends Controller
 
         $selectedLotId = $data['selected_lot_id'] ?? null;
 
-        $lots = Lot::with('project')
+        $lots = Lot::with(['project.company', 'block'])
             ->where(function ($query) use ($selectedLotId) {
                 $query->where('status', 'disponible');
 
@@ -196,12 +224,25 @@ class SaleController extends Controller
 
         return response()->json(
             $lots->map(function ($lot) {
-                $projectName = $lot->project?->name;
+                $company = $lot->project?->company;
+                $companyName = $company?->trade_name
+                    ?: ($company?->business_name ?? 'Sin empresa');
+                $projectName = $lot->project?->name ?? 'Sin proyecto';
+                $blockName = $lot->block?->name ?? 'Sin manzana';
+                $lotNumber = $lot->number ?? '—';
 
                 return [
                     'id' => $lot->id,
-                    'text' => $lot->code
-                        . ($projectName ? ' - ' . $projectName : ''),
+                    'text' => $companyName
+                        . ' · ' . $projectName
+                        . ' · ' . $blockName
+                        . ' · Lote ' . $lotNumber
+                        . ' · ' . $lot->code,
+                    'company' => $companyName,
+                    'project' => $projectName,
+                    'block' => $blockName,
+                    'lot_number' => $lotNumber,
+                    'lot_code' => $lot->code,
                     'cash_price' => $lot->cash_price,
                     'financed_price' => $lot->financed_price
                 ];

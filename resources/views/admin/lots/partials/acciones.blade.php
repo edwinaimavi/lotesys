@@ -2,7 +2,8 @@
 
     {{-- VIEW --}}
     <button type="button" class="btn btn-outline-info btn-sm viewLot" data-toggle="tooltip" title="Ver Lote"
-        data-id="{{ $lot->id }}" data-project="{{ $lot->project->name ?? '—' }}"
+        data-id="{{ $lot->id }}" data-company="{{ $lot->project->company->business_name ?? '—' }}"
+        data-project="{{ $lot->project->name ?? '—' }}"
         data-project_id="{{ $lot->project_id }}" data-block="{{ $lot->block->name ?? '—' }}"
         data-block_id="{{ $lot->block_id }}" data-code="{{ $lot->code }}" data-number="{{ $lot->number }}"
         data-area="{{ $lot->area }}" data-unit_measure="{{ $lot->unit_measure }}"

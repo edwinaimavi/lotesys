@@ -2,8 +2,10 @@
 
     {{-- VIEW --}}
     <button type="button" class="btn btn-outline-info btn-sm viewBlock" data-toggle="tooltip" title="Ver Manzana"
-        data-id="{{ $block->id }}" data-project="{{ $block->project->name ?? '—' }}"
-        data-project_id="{{ $block->project_id }}" data-name="{{ $block->name }}"
+        data-id="{{ $block->id }}"
+        data-company="{{ $block->project?->company?->business_name ?? $block->project?->company?->trade_name ?? '—' }}"
+        data-project="{{ $block->project->name ?? '—' }}" data-project_id="{{ $block->project_id }}"
+        data-name="{{ $block->name }}"
         data-description="{{ $block->description }}" data-status="{{ $block->status }}"
         data-created_at="{{ $block->created_at ? $block->created_at->format('d/m/Y H:i') : '—' }}"
         data-updated_at="{{ $block->updated_at ? $block->updated_at->format('d/m/Y H:i') : '—' }}"

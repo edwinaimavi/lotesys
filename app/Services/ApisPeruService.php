@@ -31,6 +31,8 @@ class ApisPeruService
 
             env('APISPERU_RUC_FARJE') => env('APISPERU_TOKEN_FARJE'),
 
+            env('APISPERU_RUC_BARRIO_FINO') => env('APISPERU_TOKEN_BARRIO_FINO'),
+
             default => null,
         };
 
@@ -130,6 +132,156 @@ class ApisPeruService
                 'http_status' => $response->status(),
                 'response_body' => $response->body(),
                 'response_json' => $response->json(),
+                'error_message' => null,
+                'exception_message' => null,
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'endpoint' => $endpoint,
+                'http_status' => null,
+                'response_body' => null,
+                'response_json' => null,
+                'error_message' => null,
+                'exception_message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ENVIAR NOTA DE CRÉDITO / DÉBITO
+    |--------------------------------------------------------------------------
+    */
+    public function sendNote(array $payload): array
+    {
+        $endpoint = "{$this->baseUrl}/note/send";
+
+        try {
+            $response = $this->client()
+                ->post($endpoint, $payload);
+
+            if (!$response->successful()) {
+                return [
+                    'success' => false,
+                    'message' => 'Error APISPERU: ' . $response->body(),
+                    'endpoint' => $endpoint,
+                    'http_status' => $response->status(),
+                    'response_body' => $response->body(),
+                    'response_json' => $response->json(),
+                    'error_message' => $response->body(),
+                    'exception_message' => null,
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => $response->json(),
+                'endpoint' => $endpoint,
+                'http_status' => $response->status(),
+                'response_body' => $response->body(),
+                'response_json' => $response->json(),
+                'error_message' => null,
+                'exception_message' => null,
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'endpoint' => $endpoint,
+                'http_status' => null,
+                'response_body' => null,
+                'response_json' => null,
+                'error_message' => null,
+                'exception_message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | PDF NOTA DE CRÉDITO / DÉBITO
+    |--------------------------------------------------------------------------
+    */
+    public function getNotePdf(array $payload): array
+    {
+        $endpoint = "{$this->baseUrl}/note/pdf";
+
+        try {
+            $response = $this->client()
+                ->post($endpoint, $payload);
+
+            if (!$response->successful()) {
+                return [
+                    'success' => false,
+                    'message' => 'Error APISPERU PDF Nota: ' . $response->body(),
+                    'endpoint' => $endpoint,
+                    'http_status' => $response->status(),
+                    'response_body' => $response->body(),
+                    'response_json' => $response->json(),
+                    'error_message' => $response->body(),
+                    'exception_message' => null,
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => $response->body(),
+                'endpoint' => $endpoint,
+                'http_status' => $response->status(),
+                'response_body' => null,
+                'response_json' => null,
+                'error_message' => null,
+                'exception_message' => null,
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'endpoint' => $endpoint,
+                'http_status' => null,
+                'response_body' => null,
+                'response_json' => null,
+                'error_message' => null,
+                'exception_message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | XML NOTA DE CRÉDITO / DÉBITO
+    |--------------------------------------------------------------------------
+    */
+    public function getNoteXml(array $payload): array
+    {
+        $endpoint = "{$this->baseUrl}/note/xml";
+
+        try {
+            $response = $this->client()
+                ->post($endpoint, $payload);
+
+            if (!$response->successful()) {
+                return [
+                    'success' => false,
+                    'message' => 'Error APISPERU XML Nota: ' . $response->body(),
+                    'endpoint' => $endpoint,
+                    'http_status' => $response->status(),
+                    'response_body' => $response->body(),
+                    'response_json' => $response->json(),
+                    'error_message' => $response->body(),
+                    'exception_message' => null,
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => $response->body(),
+                'endpoint' => $endpoint,
+                'http_status' => $response->status(),
+                'response_body' => null,
+                'response_json' => null,
                 'error_message' => null,
                 'exception_message' => null,
             ];

@@ -22,6 +22,20 @@ class InvoiceController extends Controller
 
 
 {
+    private const RECEIPT_SERIES = 'B002';
+
+    private const INVOICE_SERIES = 'F002';
+
+    private const SALE_NOTE_SERIES = 'NV001';
+
+    private function seriesForDocumentType(string $documentType): string
+    {
+        return match ($documentType) {
+            'invoice' => self::INVOICE_SERIES,
+            'sale_note' => self::SALE_NOTE_SERIES,
+            default => self::RECEIPT_SERIES,
+        };
+    }
 
     public function getNextNumber(Request $request)
     {
@@ -33,19 +47,7 @@ class InvoiceController extends Controller
         $documentType = $data['document_type'];
         $companyId = $data['company_id'];
 
-        switch ($documentType) {
-            case 'invoice':
-                $series = 'F001';
-                break;
-
-            case 'sale_note':
-                $series = 'NV001';
-                break;
-
-            default:
-                $series = 'B001';
-                break;
-        }
+        $series = $this->seriesForDocumentType($documentType);
 
         $number = $this->calculateNextInvoiceNumber(
             $companyId,
@@ -131,6 +133,93 @@ class InvoiceController extends Controller
             ->where('series', $series)
             ->where('number', (string) $number)
             ->exists();
+    }
+
+    /**
+     * Un pago solo queda bloqueado para una nueva emisión si ya existe
+     * un CPE aceptado o si existe un intento pendiente cuyo resultado
+     * todavía no está confirmado. Los intentos rechazados/error sí permiten
+     * un nuevo intento con un correlativo nuevo.
+     */
+    private function blockingSunatInvoiceForPayment(int $paymentId): ?Invoice
+    {
+        return Invoice::query()
+            ->where('payment_id', $paymentId)
+            ->whereIn('document_type', ['receipt', 'invoice'])
+            ->whereIn('sunat_status', ['accepted', 'pending'])
+            ->orderByRaw("CASE WHEN sunat_status = 'accepted' THEN 1 ELSE 2 END")
+            ->latest('id')
+            ->first();
+    }
+
+    private function blockingSunatInvoiceMessage(Invoice $invoice): string
+    {
+        $label = ($invoice->document_type === 'invoice' ? 'Factura' : 'Boleta') .
+            ' ' . $invoice->series . '-' . $invoice->number;
+
+        if ($invoice->sunat_status === 'pending') {
+            return "Existe un comprobante pendiente ({$label}). " .
+                'Revise la Respuesta API antes de volver a intentar para evitar duplicados.';
+        }
+
+        return "Este pago ya tiene un comprobante SUNAT aceptado ({$label}).";
+    }
+
+    /**
+     * Distingue la respuesta HTTP de APISPERU del resultado tributario real.
+     * HTTP 200 no implica aceptación: SUNAT debe confirmar success=true.
+     */
+    private function extractSunatOutcome(array $result): array
+    {
+        if (! ($result['success'] ?? false)) {
+            return [
+                'confirmed' => false,
+                'accepted' => false,
+                'code' => null,
+                'message' => $result['message'] ??
+                    'No se pudo confirmar el comprobante con APISPERU/SUNAT.',
+            ];
+        }
+
+        $data = $result['data'] ?? [];
+        $sunatResponse = is_array($data) ? ($data['sunatResponse'] ?? null) : null;
+
+        if (! is_array($sunatResponse) || ! array_key_exists('success', $sunatResponse)) {
+            return [
+                'confirmed' => false,
+                'accepted' => false,
+                'code' => null,
+                'message' => 'APISPERU respondió, pero no confirmó el resultado de SUNAT. ' .
+                    'El comprobante queda pendiente para evitar una emisión duplicada.',
+            ];
+        }
+
+        $accepted = filter_var(
+            $sunatResponse['success'],
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE
+        ) === true;
+
+        $cdrResponse = is_array($sunatResponse['cdrResponse'] ?? null)
+            ? $sunatResponse['cdrResponse']
+            : [];
+
+        $error = is_array($sunatResponse['error'] ?? null)
+            ? $sunatResponse['error']
+            : [];
+
+        $code = $cdrResponse['code'] ?? $error['code'] ?? null;
+        $message = $cdrResponse['description']
+            ?? $error['message']
+            ?? $sunatResponse['message']
+            ?? ($accepted ? 'Aceptado por SUNAT.' : 'Rechazado por SUNAT.');
+
+        return [
+            'confirmed' => true,
+            'accepted' => $accepted,
+            'code' => $code === null ? null : (string) $code,
+            'message' => (string) $message,
+        ];
     }
 
 
@@ -483,6 +572,7 @@ class InvoiceController extends Controller
                     'success' => $log->success,
                     'request_payload' => $this->protectSensitiveData($log->request_payload),
                     'response_body' => $this->protectSensitiveData($log->response_body),
+                    'response_json' => $this->protectSensitiveData($log->response_json),
                     'error_message' => $this->protectSensitiveData($log->error_message),
                     'exception_message' => $this->protectSensitiveData($log->exception_message),
                     'created_at' => optional($log->created_at)->format('d/m/Y H:i:s'),
@@ -875,6 +965,10 @@ class InvoiceController extends Controller
             'total_amount'         => 'required|numeric',
         ]);
 
+        // La serie tributaria la decide el backend. El valor enviado por el
+        // frontend es únicamente informativo y nunca puede forzar B001/F001.
+        $data['series'] = $this->seriesForDocumentType($data['document_type']);
+
         try {
             $payment = Payment::with([
                 'sale.customer',
@@ -885,20 +979,14 @@ class InvoiceController extends Controller
 
             $data['description'] = $this->buildPaymentDescription($payment);
 
-            $hasSunat = Invoice::where(
-                'payment_id',
-                $data['payment_id']
-            )
-                ->whereIn(
-                    'document_type',
-                    ['receipt', 'invoice']
-                )
-                ->exists();
+            $blockingInvoice = $this->blockingSunatInvoiceForPayment(
+                (int) $data['payment_id']
+            );
 
-            if ($hasSunat) {
+            if ($blockingInvoice) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Este pago ya tiene un comprobante SUNAT emitido.'
+                    'message' => $this->blockingSunatInvoiceMessage($blockingInvoice),
                 ], 422);
             }
 
@@ -1022,16 +1110,16 @@ class InvoiceController extends Controller
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $hasSunat = Invoice::where('payment_id', $data['payment_id'])
-                    ->whereIn('document_type', ['receipt', 'invoice'])
-                    ->exists();
+                $blockingInvoice = $this->blockingSunatInvoiceForPayment(
+                    (int) $data['payment_id']
+                );
 
-                if ($hasSunat) {
+                if ($blockingInvoice) {
                     DB::rollBack();
 
                     return response()->json([
                         'success' => false,
-                        'message' => 'Este pago ya tiene un comprobante SUNAT emitido.'
+                        'message' => $this->blockingSunatInvoiceMessage($blockingInvoice),
                     ], 422);
                 }
 
@@ -1151,76 +1239,134 @@ class InvoiceController extends Controller
             ];
 
             $send = $apisPeru->sendInvoice($payload);
+            $sunat = $this->extractSunatOutcome($send);
 
-            $apiLog = $this->storeApiLog($invoice, $payload, $send);
+            // En auditoría, success significa aceptación tributaria real,
+            // no solamente una respuesta HTTP exitosa del proveedor.
+            $auditSend = $send;
+            $auditSend['success'] = $sunat['confirmed'] && $sunat['accepted'];
 
-            if (! $send['success']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $send['message']
-                ], 500);
+            if (! $auditSend['success'] && empty($auditSend['error_message'])) {
+                $auditSend['error_message'] = $sunat['message'];
             }
 
-            $pdf = $apisPeru->getInvoicePdf($payload);
-            if (! $pdf['success']) {
+            $apiLog = $this->storeApiLog($invoice, $payload, $auditSend);
+
+            if (! $sunat['confirmed']) {
+                // Resultado ambiguo: se mantiene PENDING y se bloquea el reintento
+                // hasta revisar la Respuesta API. Esto evita duplicar un CPE que
+                // pudo haber llegado a SUNAT aunque se haya perdido la respuesta.
+                $invoice->update([
+                    'sunat_message' => $sunat['message'],
+                    'updated_by' => Auth::id(),
+                ]);
+
                 return response()->json([
                     'success' => false,
-                    'message' => $pdf['message']
-                ], 500);
+                    'message' => $sunat['message'],
+                ], 502);
             }
 
-            $xml = $apisPeru->getInvoiceXml($payload);
-            if (! $xml['success']) {
+            if (! $sunat['accepted']) {
+                // Rechazo confirmado: conservar el intento para auditoría,
+                // consumir su correlativo y permitir un nuevo intento con el
+                // siguiente número.
+                $invoice->update([
+                    'sunat_status' => 'rejected',
+                    'hash_code' => $send['data']['hash'] ?? null,
+                    'sunat_code' => $sunat['code'],
+                    'sunat_message' => $sunat['message'],
+                    'updated_by' => Auth::id(),
+                ]);
+
                 return response()->json([
                     'success' => false,
-                    'message' => $xml['message']
-                ], 500);
+                    'message' => 'SUNAT rechazó el comprobante: ' . $sunat['message'],
+                ], 422);
             }
+
+            // SUNAT ya confirmó la aceptación. Persistimos primero ese hecho.
+            // PDF/XML son archivos auxiliares y un fallo al descargarlos no debe
+            // convertir un CPE aceptado en pendiente ni habilitar una reemisión.
+            DB::transaction(function () use ($invoice, $send, $sunat) {
+                $lockedInvoice = Invoice::query()
+                    ->whereKey($invoice->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $lockedInvoice->update([
+                    'sunat_status' => 'accepted',
+                    'hash_code' => $send['data']['hash'] ?? null,
+                    'sunat_ticket' => $send['data']['ticket'] ?? null,
+                    'sunat_code' => $sunat['code'],
+                    'sunat_message' => $sunat['message'],
+                    'updated_by' => Auth::id(),
+                ]);
+            });
 
             $prefix = $data['document_type'] === 'invoice'
                 ? 'FACTURA'
                 : 'BOLETA';
 
-            $pdfFile = $prefix . '_' . $data['series'] . '-' . $data['number'] . '.pdf';
-            $xmlFile = $prefix . '_' . $data['series'] . '-' . $data['number'] . '.xml';
+            $artifactWarnings = [];
 
-            $pdfPath = 'invoices/' . $pdfFile;
-            $xmlPath = 'invoices/' . $xmlFile;
+            try {
+                $pdf = $apisPeru->getInvoicePdf($payload);
 
-            Storage::disk('public')->put($pdfPath, $pdf['data']);
-            Storage::disk('public')->put($xmlPath, $xml['data']);
+                if ($pdf['success'] ?? false) {
+                    $pdfFile = $prefix . '_' . $data['series'] . '-' . $data['number'] . '.pdf';
+                    $pdfPath = 'invoices/' . $pdfFile;
+                    Storage::disk('public')->put($pdfPath, $pdf['data']);
+                } else {
+                    $artifactWarnings[] = 'No se pudo obtener el PDF.';
+                }
+            } catch (\Throwable $e) {
+                $artifactWarnings[] = 'No se pudo obtener el PDF.';
 
-            DB::beginTransaction();
+                Log::warning('Comprobante aceptado, pero no se pudo guardar su PDF.', [
+                    'invoice_id' => $invoice->id,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
 
-            $invoice = Invoice::whereKey($invoice->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            try {
+                $xml = $apisPeru->getInvoiceXml($payload);
+
+                if ($xml['success'] ?? false) {
+                    $xmlFile = $prefix . '_' . $data['series'] . '-' . $data['number'] . '.xml';
+                    $xmlPath = 'invoices/' . $xmlFile;
+                    Storage::disk('public')->put($xmlPath, $xml['data']);
+                } else {
+                    $artifactWarnings[] = 'No se pudo obtener el XML.';
+                }
+            } catch (\Throwable $e) {
+                $artifactWarnings[] = 'No se pudo obtener el XML.';
+
+                Log::warning('Comprobante aceptado, pero no se pudo guardar su XML.', [
+                    'invoice_id' => $invoice->id,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
 
             $invoice->update([
-                'sunat_status'  => 'accepted',
-                'hash_code'     => $send['data']['hash'] ?? null,
-                'sunat_ticket'  => $send['data']['ticket'] ?? null,
-                'sunat_code'    => $send['data']['code'] ?? null,
-                'sunat_message' => $send['data']['message'] ?? null,
-
-                'pdf_path'   => $pdfPath,
-                'xml_path'   => $xmlPath,
-
-                'created_by' => Auth::id(),
+                'pdf_path' => $pdfPath,
+                'xml_path' => $xmlPath,
                 'updated_by' => Auth::id(),
             ]);
 
-            DB::commit();
-
-            $documentName = $data['document_type'] === 'invoice'
-                ? 'Factura'
-                : 'Boleta';
+            $message = empty($artifactWarnings)
+                ? 'Comprobante aceptado por SUNAT correctamente.'
+                : 'Comprobante aceptado por SUNAT. ' . implode(' ', $artifactWarnings);
 
             return response()->json([
                 'success'    => true,
-                'message'    => 'Comprobante emitido correctamente.',
-                'pdf_url'    => asset('storage/' . $pdfPath),
-                'xml_url'    => asset('storage/' . $xmlPath),
+                'message'    => $message,
+                'pdf_url'    => $pdfPath
+                    ? route('admin.invoices.downloadPdf', $invoice->id)
+                    : null,
+                'xml_url'    => $xmlPath
+                    ? route('admin.invoices.downloadXml', $invoice->id)
+                    : null,
                 'ticket_url' => route('admin.invoices.ticket', $invoice->id),
                 'invoice_id' => $invoice->id,
             ]);

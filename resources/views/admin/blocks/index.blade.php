@@ -97,6 +97,8 @@
 
                             <th>ID</th>
 
+                            <th>EMPRESA</th>
+
                             <th>PROYECTO</th>
 
                             <th>MANZANA</th>

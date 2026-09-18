@@ -4,403 +4,359 @@
 
     <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
 
-        <div class="modal-content border-0 shadow-lg rounded-xl overflow-hidden">
+        <div class="modal-content border-0 shadow-lg sale-detail-modal">
 
-            <!-- HEADER -->
-            <div class="modal-header bg-white border-0 py-4 px-4">
+            <div class="modal-header sale-detail-header border-0 px-4 py-3">
+                <div class="d-flex align-items-center min-w-0">
+                    <div class="sale-detail-header-icon mr-3">
+                        <i class="fas fa-file-signature"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="modal-title font-weight-bold mb-0" id="viewSaleModalLabel">Información de la Venta</h4>
+                        <small class="sale-detail-subtitle">Resumen comercial y financiero</small>
+                    </div>
+                </div>
 
-                <h4 class="modal-title font-weight-bold text-dark" id="viewSaleModalLabel">
-
-                    <i class="fas fa-eye text-primary mr-2"></i>
-                    Información de la Venta
-
-                </h4>
-
-                <button type="button" class="close text-dark" data-dismiss="modal" aria-label="Cerrar">
-
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar" style="opacity:1;">
                     <span aria-hidden="true">&times;</span>
-
                 </button>
-
             </div>
 
-            <!-- BODY -->
-            <div class="modal-body pt-0">
+            <div class="modal-body sale-detail-body p-3 p-md-4">
 
-                <div class="row">
-
-                    <!-- PANEL IZQUIERDO -->
-                    <div class="col-md-4 border-right text-center py-4">
-
-                        <div class="mb-4">
-
-                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center shadow"
-                                style="
-                                    width:180px;
-                                    height:180px;
-                                    background:linear-gradient(135deg,#28a745,#1e7e34);
-                                    color:white;
-                                    font-size:70px;
-                                ">
-
-                                <i class="fas fa-file-signature"></i>
-
-                            </div>
-
+                <div class="sale-detail-hero mb-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-3 mb-3 mb-md-0">
+                            <small class="sale-detail-label">Código de venta</small>
+                            <div id="vs_codigo_venta" class="sale-detail-code">VTA00001</div>
                         </div>
-
-                        <h3 id="vs_codigo_venta" class="font-weight-bold text-dark mb-2">
-
-                            VTA00001
-
-                        </h3>
-
-                        <p id="vs_cliente" class="text-muted h5 mb-3">
-
-                            Cliente
-
-                        </p>
-
-                        <div class="mb-4">
-
-                            <span id="vs_estado_badge" class="badge badge-success px-4 py-2 shadow-sm">
-
-                                Activo
-
-                            </span>
-
+                        <div class="col-md-5 mb-3 mb-md-0">
+                            <small class="sale-detail-label">Cliente</small>
+                            <div id="vs_cliente" class="sale-detail-client">Cliente</div>
                         </div>
-
-                        <hr>
-
-                        <div class="text-left px-3">
-
-                            <small class="text-muted d-block">
-                                Registrado por
-                            </small>
-
-                            <div id="vs_created_by" class="font-weight-bold mb-3">
-
-                                Usuario
-
-                            </div>
-
-                            <small class="text-muted d-block">
-                                Última actualización
-                            </small>
-
-                            <div id="vs_updated_at" class="font-weight-bold">
-
-                                —
-
-                            </div>
-
+                        <div class="col-md-2 mb-3 mb-md-0">
+                            <small class="sale-detail-label">Fecha</small>
+                            <div id="vs_fecha_venta" class="sale-detail-value">—</div>
                         </div>
+                        <div class="col-md-2 text-md-right">
+                            <span id="vs_estado_badge" class="badge badge-success sale-detail-status">Activo</span>
+                        </div>
+                    </div>
+                </div>
 
+                <div class="sale-detail-section mb-3">
+                    <div class="sale-detail-section-title">
+                        <i class="fas fa-map-marked-alt mr-2"></i>Ubicación e identificación del lote
                     </div>
 
-                    <!-- PANEL DERECHO -->
-                    <div class="col-md-8 py-4">
-
-                        <!-- INFORMACIÓN GENERAL -->
-                        <div class="mb-4">
-
-                            <h5 class="text-secondary mb-4">
-                                Información General
-                            </h5>
-
-                            <div class="row">
-
-                                <div class="col-md-4 mb-4">
-
-                                    <small class="text-muted">
-                                        Cliente
-                                    </small>
-
-                                    <div id="vs_cliente_nombre" class="font-weight-bold text-dark h6">
-
-                                        —
-
-                                    </div>
-
-                                </div>
-
-                                <div class="col-md-4 mb-4">
-
-                                    <small class="text-muted">
-                                        Lote
-                                    </small>
-
-                                    <div id="vs_lote" class="font-weight-bold text-dark h6">
-
-                                        —
-
-                                    </div>
-
-                                </div>
-
-                                <div class="col-md-4 mb-4">
-
-                                    <small class="text-muted">
-                                        Fecha Venta
-                                    </small>
-
-                                    <div id="vs_fecha_venta" class="font-weight-bold text-dark h6">
-
-                                        —
-
-                                    </div>
-
-                                </div>
-
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <div class="sale-detail-item h-100">
+                                <small>Empresa</small>
+                                <strong id="vs_empresa">—</strong>
+                                <span>RUC: <span id="vs_empresa_ruc">—</span></span>
                             </div>
-
                         </div>
-
-                        <hr>
-
-                        <!-- INFORMACIÓN FINANCIERA -->
-                        <div class="mb-4">
-
-                            <h5 class="text-secondary mb-4">
-                                Información Financiera
-                            </h5>
-
-                            <div class="row">
-
-                                <div class="col-md-4 mb-3">
-
-                                    <div class="p-4 rounded-lg border shadow-sm bg-light">
-
-                                        <small class="text-muted d-block mb-2">
-                                            Precio Lote
-                                        </small>
-
-                                        <h4 id="vs_precio_lote" class="font-weight-bold text-primary mb-0">
-
-                                            S/ 0.00
-
-                                        </h4>
-
-                                    </div>
-
-                                </div>
-
-                                <div class="col-md-4 mb-3">
-
-                                    <div class="p-4 rounded-lg border shadow-sm bg-light">
-
-                                        <small class="text-muted d-block mb-2">
-                                            Inicial
-                                        </small>
-
-                                        <h4 id="vs_inicial" class="font-weight-bold text-success mb-0">
-
-                                            S/ 0.00
-
-                                        </h4>
-
-                                    </div>
-
-                                </div>
-
-                                <div class="col-md-4 mb-3">
-
-                                    <div class="p-4 rounded-lg border shadow-sm bg-light">
-
-                                        <small class="text-muted d-block mb-2">
-                                            Saldo Financiar
-                                        </small>
-
-                                        <h4 id="vs_saldo_financiar" class="font-weight-bold text-danger mb-0">
-
-                                            S/ 0.00
-
-                                        </h4>
-
-                                    </div>
-
-                                </div>
-
+                        <div class="col-md-3 mb-2">
+                            <div class="sale-detail-item h-100">
+                                <small>Proyecto</small>
+                                <strong id="vs_proyecto">—</strong>
                             </div>
-
                         </div>
-
-                        <hr>
-
-                        <!-- FINANCIAMIENTO -->
-                        <div class="mb-4">
-
-                            <h5 class="text-secondary mb-4">
-                                Información de Financiamiento
-                            </h5>
-
-                            <div class="table-responsive">
-
-                                <table class="table table-bordered">
-
-                                    <tbody>
-
-                                        <tr>
-
-                                            <th width="250">
-                                                Cantidad de Cuotas
-                                            </th>
-
-                                            <td id="vs_cantidad_cuotas">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <th>
-                                                Cuota Mensual
-                                            </th>
-
-                                            <td id="vs_cuota_mensual">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <th>
-                                                Tasa de Interés
-                                            </th>
-
-                                            <td id="vs_tasa_interes">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <th>
-                                                Fecha Primer Pago
-                                            </th>
-
-                                            <td id="vs_fecha_primer_pago">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <th>
-                                                Día de Pago
-                                            </th>
-
-                                            <td id="vs_dia_pago">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <th>
-                                                Estado
-                                            </th>
-
-                                            <td id="vs_estado_text">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                    </tbody>
-
-                                </table>
-
+                        <div class="col-md-2 mb-2">
+                            <div class="sale-detail-item h-100">
+                                <small>Manzana</small>
+                                <strong id="vs_manzana">—</strong>
                             </div>
-
                         </div>
-
-                        <hr>
-
-                        <!-- INFORMACIÓN DEL SISTEMA -->
-                        <div>
-
-                            <h5 class="text-secondary mb-3">
-                                Información del Sistema
-                            </h5>
-
-                            <div class="table-responsive">
-
-                                <table class="table table-borderless table-sm">
-
-                                    <tbody>
-
-                                        <tr>
-
-                                            <td width="220">
-                                                <strong>ID Venta:</strong>
-                                            </td>
-
-                                            <td id="vs_id">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <td>
-                                                <strong>Fecha de Registro:</strong>
-                                            </td>
-
-                                            <td id="vs_created_at">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <td>
-                                                <strong>Usuario creador:</strong>
-                                            </td>
-
-                                            <td id="vs_created_by_user">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                        <tr>
-
-                                            <td>
-                                                <strong>Última edición:</strong>
-                                            </td>
-
-                                            <td id="vs_updated_by_user">
-                                                —
-                                            </td>
-
-                                        </tr>
-
-                                    </tbody>
-
-                                </table>
-
+                        <div class="col-md-2 mb-2">
+                            <div class="sale-detail-item h-100">
+                                <small>N.º de lote</small>
+                                <strong id="vs_lote_numero">—</strong>
                             </div>
-
                         </div>
-
+                        <div class="col-md-2 mb-2">
+                            <div class="sale-detail-item h-100">
+                                <small>Código del lote</small>
+                                <strong id="vs_lote_codigo" class="text-primary">—</strong>
+                            </div>
+                        </div>
                     </div>
-                    <!-- /COL RIGHT -->
+                </div>
 
+                <div class="sale-detail-section mb-3">
+                    <div class="sale-detail-section-title">
+                        <i class="fas fa-wallet mr-2"></i>Resumen financiero
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <div class="sale-money-card sale-money-primary">
+                                <span>Precio del lote</span>
+                                <strong id="vs_precio_lote">S/ 0.00</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="sale-money-card sale-money-success">
+                                <span>Inicial</span>
+                                <strong id="vs_inicial">S/ 0.00</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="sale-money-card sale-money-danger">
+                                <span>Saldo a financiar</span>
+                                <strong id="vs_saldo_financiar">S/ 0.00</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sale-detail-section mb-3">
+                    <div class="sale-detail-section-title">
+                        <i class="fas fa-calculator mr-2"></i>Condiciones de financiamiento
+                    </div>
+
+                    <div class="row sale-finance-grid">
+                        <div class="col-6 col-md-4 col-lg-2 mb-2">
+                            <small>Cuotas</small>
+                            <strong id="vs_cantidad_cuotas">—</strong>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2 mb-2">
+                            <small>Cuota mensual</small>
+                            <strong id="vs_cuota_mensual">—</strong>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2 mb-2">
+                            <small>Interés</small>
+                            <strong id="vs_tasa_interes">—</strong>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2 mb-2">
+                            <small>Primer pago</small>
+                            <strong id="vs_fecha_primer_pago">—</strong>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2 mb-2">
+                            <small>Día de pago</small>
+                            <strong id="vs_dia_pago">—</strong>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2 mb-2">
+                            <small>Estado</small>
+                            <strong id="vs_estado_text">—</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sale-system-strip">
+                    <div><small>ID Venta</small><strong id="vs_id">—</strong></div>
+                    <div><small>Registrado</small><strong id="vs_created_at">—</strong></div>
+                    <div><small>Usuario creador</small><strong id="vs_created_by_user">—</strong></div>
+                    <div><small>Última edición</small><strong id="vs_updated_by_user">—</strong></div>
+                    <div class="d-none"><span id="vs_cliente_nombre">—</span><span id="vs_created_by">—</span><span id="vs_updated_at">—</span></div>
                 </div>
 
             </div>
 
+            <div class="modal-footer border-0 pt-0 px-4 pb-3">
+                <button type="button" class="btn btn-light border px-4" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cerrar
+                </button>
+            </div>
+
         </div>
-
     </div>
-
 </div>
+
+<style>
+    #viewSaleModal .modal-dialog {
+        max-width: 1120px;
+    }
+
+    #viewSaleModal .sale-detail-modal {
+        border-radius: 18px;
+        overflow: hidden;
+    }
+
+    #viewSaleModal .sale-detail-header {
+        background: linear-gradient(135deg, #0d2d52 0%, #165488 100%);
+        color: #fff;
+    }
+
+    #viewSaleModal .sale-detail-header-icon {
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,.14);
+        font-size: 18px;
+    }
+
+    #viewSaleModal .sale-detail-subtitle {
+        color: rgba(255,255,255,.72);
+    }
+
+    #viewSaleModal .sale-detail-body {
+        background: #f6f8fb;
+        max-height: 78vh;
+        overflow-y: auto;
+    }
+
+    #viewSaleModal .sale-detail-hero,
+    #viewSaleModal .sale-detail-section,
+    #viewSaleModal .sale-system-strip {
+        background: #fff;
+        border: 1px solid #e6ebf2;
+        border-radius: 14px;
+    }
+
+    #viewSaleModal .sale-detail-hero {
+        padding: 14px 16px;
+        box-shadow: 0 4px 14px rgba(15, 45, 82, .05);
+    }
+
+    #viewSaleModal .sale-detail-label,
+    #viewSaleModal .sale-detail-item small,
+    #viewSaleModal .sale-finance-grid small,
+    #viewSaleModal .sale-system-strip small {
+        display: block;
+        font-size: 10px;
+        line-height: 1.2;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #8592a3;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    #viewSaleModal .sale-detail-code {
+        font-size: 22px;
+        font-weight: 800;
+        color: #17324d;
+    }
+
+    #viewSaleModal .sale-detail-client {
+        font-size: 15px;
+        font-weight: 800;
+        color: #1f2937;
+    }
+
+    #viewSaleModal .sale-detail-value {
+        font-size: 14px;
+        font-weight: 700;
+        color: #26384a;
+    }
+
+    #viewSaleModal .sale-detail-status {
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-size: 11px;
+        text-transform: uppercase;
+    }
+
+    #viewSaleModal .sale-detail-section {
+        padding: 14px;
+    }
+
+    #viewSaleModal .sale-detail-section-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: #274663;
+        margin-bottom: 10px;
+    }
+
+    #viewSaleModal .sale-detail-section-title i {
+        color: #1987d4;
+    }
+
+    #viewSaleModal .sale-detail-item,
+    #viewSaleModal .sale-finance-grid > div {
+        background: #f8fafc;
+        border: 1px solid #edf1f5;
+        border-radius: 10px;
+        padding: 10px 12px;
+    }
+
+    #viewSaleModal .sale-detail-item strong,
+    #viewSaleModal .sale-finance-grid strong {
+        display: block;
+        color: #223548;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+
+    #viewSaleModal .sale-detail-item span {
+        display: block;
+        margin-top: 3px;
+        color: #8a96a4;
+        font-size: 10px;
+    }
+
+    #viewSaleModal .sale-money-card {
+        border-radius: 11px;
+        padding: 12px 14px;
+        border: 1px solid #e7edf3;
+        background: #fff;
+    }
+
+    #viewSaleModal .sale-money-card span {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        color: #8693a1;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    #viewSaleModal .sale-money-card strong {
+        font-size: 20px;
+        font-weight: 800;
+    }
+
+    #viewSaleModal .sale-money-primary strong { color: #087ceb; }
+    #viewSaleModal .sale-money-success strong { color: #16a34a; }
+    #viewSaleModal .sale-money-danger strong { color: #e63846; }
+
+    #viewSaleModal .sale-system-strip {
+        display: grid;
+        grid-template-columns: .7fr 1.2fr 1fr 1fr;
+        gap: 1px;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    #viewSaleModal .sale-system-strip > div {
+        padding: 10px 12px;
+        background: #fff;
+        border-right: 1px solid #edf1f5;
+    }
+
+    #viewSaleModal .sale-system-strip > div:last-child {
+        border-right: 0;
+    }
+
+    #viewSaleModal .sale-system-strip strong {
+        display: block;
+        font-size: 12px;
+        color: #34495e;
+    }
+
+    @media (max-width: 767.98px) {
+        #viewSaleModal .modal-dialog {
+            margin: 8px;
+        }
+
+        #viewSaleModal .sale-detail-body {
+            max-height: calc(100vh - 150px);
+        }
+
+        #viewSaleModal .sale-system-strip {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        #viewSaleModal .sale-detail-code {
+            font-size: 19px;
+        }
+    }
+</style>

@@ -19,7 +19,7 @@ class CompanySeeder extends Seeder
                 'trade_name'    => 'GRUPO KREA',
                 'address'       => 'AV. CIRCUNVALACION NRO. 452 SAN MARTIN - SAN MARTIN - TARAPOTO',
                 'email'         => 'krea@gmail.com',
-                'phone'         => '972873511',
+                'phone'         => '964796708',
                 'status'        => 1,
                 'created_by'    => 1,
                 'updated_by'    => 1,
@@ -33,7 +33,21 @@ class CompanySeeder extends Seeder
                 'trade_name'    => 'FARJE INGENIEROS E.I.R.L.',
                 'address'       => 'AV. CIRCUNVALACION NRO. 452 (AL COSTADO DE FERRETERIA DR OBRA) SAN MARTIN - SAN MARTIN - TARAPOTO',
                 'email'         => 'farje@gmail.com',
-                'phone'         => '987963852',
+                'phone'         => '964796708',
+                'status'        => 1,
+                'created_by'    => 1,
+                'updated_by'    => 1,
+            ]
+        );
+
+        Company::updateOrCreate(
+            ['ruc' => '20615005917'],
+            [
+                'business_name' => 'CONSTRUCTORA E INMOBILIARIA BARRIO FINO S.A.C.',
+                'trade_name'    => 'BARRIO FINO',
+                'address'       => 'AV. CIRCUNVALACION NRO. 452 URB. PARTIDO ALTO SAN MARTIN - SAN MARTIN - TARAPOTO',
+                'email'         => 'barriofino@gmail.com',
+                'phone'         => '964796708',
                 'status'        => 1,
                 'created_by'    => 1,
                 'updated_by'    => 1,

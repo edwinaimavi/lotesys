@@ -8,7 +8,13 @@
             @else
                 {{ trim(($sale->customer->first_name ?? '') . ' ' . ($sale->customer->last_name ?? '')) }} @endif
         "
-        data-lot="{{ $sale->lot->code ?? '—' }}" data-customer_id="{{ $sale->customer_id }}"
+        data-lot="{{ $sale->lot->code ?? '—' }}"
+        data-company="{{ $sale->lot?->project?->company?->business_name ?? '—' }}"
+        data-company_ruc="{{ $sale->lot?->project?->company?->ruc ?? '—' }}"
+        data-project="{{ $sale->lot?->project?->name ?? '—' }}"
+        data-block="{{ $sale->lot?->block?->name ?? '—' }}"
+        data-lot_number="{{ $sale->lot?->number ?? '—' }}"
+        data-lot_code="{{ $sale->lot?->code ?? '—' }}" data-customer_id="{{ $sale->customer_id }}"
         data-lot_id="{{ $sale->lot_id }}" data-sale_type="{{ $sale->sale_type }}"
         data-sale_date="{{ $sale->sale_date }}"
         data-lot_price="{{ $sale->lot_price }}" data-initial_payment="{{ $sale->initial_payment }}"
@@ -35,7 +41,11 @@
             @else
                 {{ trim(($sale->customer->first_name ?? '') . ' ' . ($sale->customer->last_name ?? '')) }} @endif
         "
-        data-lot="{{ $sale->lot->code ?? '—' }}">
+        data-company="{{ $sale->lot?->project?->company?->trade_name ?? $sale->lot?->project?->company?->business_name ?? '—' }}"
+        data-project="{{ $sale->lot?->project?->name ?? '—' }}"
+        data-block="{{ $sale->lot?->block?->name ?? '—' }}"
+        data-lot_number="{{ $sale->lot?->number ?? '—' }}"
+        data-lot_code="{{ $sale->lot?->code ?? '—' }}">
 
         <i class="fas fa-calendar-alt"></i>
 

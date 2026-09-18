@@ -19,6 +19,75 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // =========================================================
+    // EMPRESA -> PROYECTOS
+    // La manzana sigue perteneciendo al proyecto; la empresa es un
+    // filtro visual para dejar clara la relación Empresa / Proyecto.
+    // =========================================================
+
+    const $companyFilter = $('#company_id_filter');
+    const $projectSelect = $('#project_id');
+    const $projectPlaceholder = $projectSelect.find('option:first').clone();
+    const $projectOptions = $projectSelect.find('option').not(':first').clone();
+
+    function filterProjectsByCompany(companyId, selectedProjectId = '') {
+
+        $projectSelect.empty();
+
+        if (!companyId) {
+
+            $projectSelect
+                .append($projectPlaceholder.clone().text('Seleccione primero una empresa'))
+                .prop('disabled', true)
+                .val('');
+
+            $('#project_company_help').text('Solo se mostrarán los proyectos de la empresa seleccionada.');
+
+            return;
+        }
+
+        $projectSelect
+            .append($projectPlaceholder.clone().text('Seleccione un proyecto'))
+            .prop('disabled', false);
+
+        let available = 0;
+
+        $projectOptions.each(function () {
+
+            const $option = $(this);
+
+            if (String($option.data('company-id')) === String(companyId)) {
+                $projectSelect.append($option.clone());
+                available++;
+            }
+        });
+
+        const companyName = $companyFilter.find('option:selected').text().trim();
+
+        $('#project_company_help').text(
+            available > 0
+                ? `Proyectos disponibles de ${companyName}: ${available}.`
+                : `La empresa ${companyName} no tiene proyectos activos disponibles.`
+        );
+
+        if (selectedProjectId) {
+            $projectSelect.val(String(selectedProjectId));
+        } else {
+            $projectSelect.val('');
+        }
+    }
+
+    $companyFilter.on('change', function () {
+
+        $(this).removeClass('is-invalid');
+        $('#company_id_filter-error').text('');
+
+        $projectSelect.removeClass('is-invalid');
+        $('#project_id-error').text('');
+
+        filterProjectsByCompany($(this).val());
+    });
+
+    // =========================================================
     // GUARDAR / ACTUALIZAR MANZANA
     // =========================================================
 
@@ -42,6 +111,21 @@ document.addEventListener("DOMContentLoaded", function () {
 `);
 
         e.preventDefault();
+
+        if (!$companyFilter.val()) {
+
+            btn.prop('disabled', false);
+            btn.html(`
+    <i class="fas fa-save mr-1"></i>
+    Guardar Manzana
+`);
+
+            $companyFilter.addClass('is-invalid');
+            $('#company_id_filter-error').text('La empresa es obligatoria.');
+            $companyFilter.trigger('focus');
+
+            return;
+        }
 
         divLoading.style.display = "flex";
 
@@ -178,7 +262,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
         $('#blockForm').attr('data-id', id);
 
-        $('#project_id').val(project_id);
+        const $projectOption = $projectOptions.filter(function () {
+            return String($(this).val()) === String(project_id);
+        }).first();
+
+        const companyId = $projectOption.data('company-id');
+
+        $companyFilter.val(String(companyId || ''));
+        filterProjectsByCompany(companyId, project_id);
 
         $('#name').val(name);
 
@@ -204,6 +295,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
         $form[0].reset();
 
+        $companyFilter.val('');
+        filterProjectsByCompany('');
+
         $form.removeAttr('data-id');
 
         $('#blockModalLabel').html('NUEVA MANZANA');
@@ -221,6 +315,8 @@ document.addEventListener("DOMContentLoaded", function () {
     $(document).on('click', '.viewBlock', function () {
 
         const id = $(this).data('id');
+
+        const company = $(this).data('company');
 
         const project = $(this).data('project');
 
@@ -245,6 +341,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // =========================================================
 
         $('#vb_id').text(id || '—');
+
+        $('#vb_company').text(company || '—');
+
+        $('#vb_company_name').text(company || '—');
 
         $('#vb_project').text(project || '—');
 
@@ -436,6 +536,11 @@ document.addEventListener("DOMContentLoaded", function () {
             {
                 data: 'id',
                 name: 'id'
+            },
+
+            {
+                data: 'company',
+                name: 'company'
             },
 
             {

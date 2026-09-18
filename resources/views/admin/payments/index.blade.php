@@ -105,7 +105,11 @@
 
                             <th>ID</th>
 
-                            <th>VENTA</th>
+                            <th>VENTA / CLIENTE</th>
+
+                            <th>EMPRESA</th>
+
+                            <th>INMUEBLE</th>
 
                             <th>CUOTA</th>
 
@@ -171,6 +175,18 @@
         #tablePayment tbody tr:hover {
             background: #fafafa;
             transition: .2s ease;
+        }
+
+
+        #tablePayment .payment-sale-reference,
+        #tablePayment .payment-property-reference {
+            min-width: 145px;
+            line-height: 1.25;
+        }
+
+        #tablePayment .payment-sale-reference small,
+        #tablePayment .payment-property-reference small {
+            font-size: 11px;
         }
 
         .breadcrumb {

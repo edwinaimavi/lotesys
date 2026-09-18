@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\PaymentSchedule;
 use App\Models\PaymentDetail;
+use App\Models\Invoice;
 
 use App\Models\Sale;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ use Carbon\Carbon;
 use App\Models\Holiday;
 
 use App\Services\ApisPeruService;
+use App\Services\CreditNoteService;
 use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
@@ -29,14 +31,19 @@ class PaymentController extends Controller
      */
     public function index()
     {
-        $sales = Sale::whereHas('paymentSchedules', function ($q) {
+        $sales = Sale::with([
+            'customer',
+            'lot.project.company',
+            'lot.block',
+        ])
+            ->whereHas('paymentSchedules', function ($q) {
 
-            $q->whereIn('status', [
-                'pendiente',
-                'parcial',
-                'vencido'
-            ]);
-        })
+                $q->whereIn('status', [
+                    'pendiente',
+                    'parcial',
+                    'vencido'
+                ]);
+            })
             ->orderBy('sale_code')
             ->get();
 
@@ -65,11 +72,14 @@ class PaymentController extends Controller
     public function list()
     {
         $payments = Payment::with([
-            'sale',
+            'sale.customer',
+            'sale.lot.project.company',
+            'sale.lot.block',
             'details.paymentSchedule',
             'creator',
             'updater',
-            'invoice'
+            'invoice',
+            'invoices'
         ])
             ->orderBy('id', 'desc')
             ->get();
@@ -80,7 +90,39 @@ class PaymentController extends Controller
 
             ->addColumn('sale', function ($payment) {
 
-                return $payment->sale->sale_code ?? '—';
+                $sale = $payment->sale;
+                $customer = $sale?->customer;
+
+                $customerName = $customer?->person_type === 'juridica'
+                    ? ($customer->business_name ?: '—')
+                    : trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+
+                $customerName = $customerName !== '' ? $customerName : '—';
+
+                return '<div class="text-left payment-sale-reference">'
+                    . '<div class="font-weight-bold text-primary">' . e($sale?->sale_code ?? '—') . '</div>'
+                    . '<small class="text-muted d-block text-truncate" title="' . e($customerName) . '">' . e($customerName) . '</small>'
+                    . '</div>';
+            })
+
+            ->addColumn('company', function ($payment) {
+
+                return $payment->sale?->lot?->project?->company?->business_name ?? '—';
+            })
+
+            ->addColumn('property', function ($payment) {
+
+                $lot = $payment->sale?->lot;
+                $project = $lot?->project?->name ?? '—';
+                $block = $lot?->block?->name ?? '—';
+                $number = $lot?->number ?? '—';
+                $code = $lot?->code ?? '—';
+
+                return '<div class="text-left payment-property-reference">'
+                    . '<div class="font-weight-bold text-dark">' . e($project) . '</div>'
+                    . '<small class="text-muted d-block">' . e($block) . ' · Lote ' . e($number) . '</small>'
+                    . '<small class="text-primary d-block">' . e($code) . '</small>'
+                    . '</div>';
             })
 
             ->addColumn('installment', function ($payment) {
@@ -143,7 +185,7 @@ class PaymentController extends Controller
                 )->render();
             })
 
-            ->rawColumns(['status', 'acciones'])
+            ->rawColumns(['sale', 'property', 'status', 'acciones'])
 
             ->make(true);
     }
@@ -967,160 +1009,193 @@ class PaymentController extends Controller
     }
     /**
      * ANULAR PAGO
+     *
+     * Si existe una boleta/factura SUNAT aceptada, primero emite una Nota de
+     * Crédito motivo 01. La reversión financiera solo ocurre después de la
+     * confirmación de SUNAT. Sin CPE aceptado conserva el flujo local actual.
      */
-    public function cancel(Payment $payment)
-    {
-        DB::beginTransaction();
-
+    public function cancel(
+        Request $request,
+        Payment $payment,
+        CreditNoteService $creditNoteService
+    ) {
         try {
-
-            // =====================================================
-            // VALIDAR
-            // =====================================================
+            $payment->load(['details', 'invoices']);
 
             if ($payment->status === 'anulado') {
-
                 return response()->json([
-
                     'status' => 'warning',
-
-                    'message' => 'El pago ya está anulado.'
-
+                    'message' => 'El pago ya está anulado.',
                 ], 400);
             }
 
-            // =====================================================
-            // ANULAR PAGO
-            // =====================================================
+            $sunatInvoices = $payment->invoices
+                ->whereIn('document_type', ['receipt', 'invoice']);
 
-            $payment->status = 'anulado';
+            $acceptedInvoices = $sunatInvoices
+                ->where('sunat_status', 'accepted')
+                ->values();
 
-            $payment->updated_by = Auth::id();
-
-            $payment->save();
-
-            // =====================================================
-            // RECALCULAR TODAS LAS CUOTAS DEL PAGO
-            // =====================================================
-
-            foreach ($payment->details as $detail) {
-
-                $schedule = PaymentSchedule::with('sale.lateFeeSetting')
-                    ->find($detail->payment_schedule_id);
-
-                if (!$schedule) {
-                    continue;
-                }
-
-                // =============================================
-                // TOTAL PAGADO SOLO PAGOS ACTIVOS
-                // =============================================
-
-                $totalCapitalPaid = PaymentDetail::where(
-                    'payment_schedule_id',
-                    $schedule->id
-                )
-                    ->whereHas('payment', function ($q) {
-
-                        $q->where('status', 'activo');
-                    })
-                    ->sum('applied_amount');
-
-                $totalLateFeePaid = Payment::where(
-                    'payment_schedule_id',
-                    $schedule->id
-                )
-                    ->where('status', 'activo')
-                    ->sum('late_fee_paid');
-
-                $totalPaid = $totalCapitalPaid + $totalLateFeePaid;
-
-                // =============================================
-                // NUEVO SALDO
-                // =============================================
-
-                // =============================================
-                // RECALCULAR MORA ACTUAL
-                // =============================================
-
-                $lateFee = $this->calculateLateFeeForSchedule(
-                    $schedule
-                );
-
-                // =============================================
-                // TOTAL REAL
-                // =============================================
-
-                // =============================================
-                // GUARDAR MORA EN LA CUOTA
-                // =============================================
-
-                $schedule->late_fee = round($lateFee, 2);
-
-                // =============================================
-                // TOTAL REAL
-                // =============================================
-
-                $realTotal =
-                    $schedule->total_amount +
-                    $schedule->late_fee;
-
-                // =============================================
-                // NUEVO SALDO
-                // =============================================
-
-                $remaining = $realTotal - $totalPaid;
-
-                if ($remaining < 0) {
-                    $remaining = 0;
-                }
-                $schedule->remaining_balance = $remaining;
-
-                // =============================================
-                // ESTADO
-                // =============================================
-
-                if ($remaining <= 0) {
-
-                    $schedule->status = 'pagado';
-                } elseif ($totalPaid > 0) {
-
-                    $schedule->status = 'parcial';
-                } else {
-
-                    $schedule->status = 'pendiente';
-                }
-
-                $schedule->save();
+            if ($acceptedInvoices->count() > 1) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Este pago tiene más de un comprobante SUNAT aceptado. ' .
+                        'Debe revisarse manualmente antes de anular.',
+                ], 422);
             }
 
-            $this->updateSaleAndLotStatus(
-                $payment->sale_id
-            );
+            $pendingInvoice = $sunatInvoices
+                ->firstWhere('sunat_status', 'pending');
 
-            DB::commit();
+            $creditNote = null;
+
+            if ($acceptedInvoices->isNotEmpty()) {
+                $reason = trim((string) $request->input('cancellation_reason'));
+
+                if (mb_strlen($reason) < 5) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Ingrese un motivo de anulación de al menos 5 caracteres.',
+                    ], 422);
+                }
+
+                if (mb_strlen($reason) > 500) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'El motivo de anulación no puede superar los 500 caracteres.',
+                    ], 422);
+                }
+
+                /** @var Invoice $acceptedInvoice */
+                $acceptedInvoice = $acceptedInvoices->first();
+
+                $noteResult = $creditNoteService->annulAcceptedInvoice(
+                    $acceptedInvoice,
+                    $reason
+                );
+
+                if (! ($noteResult['success'] ?? false)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => $noteResult['message'] ??
+                            'No se pudo confirmar la Nota de Crédito con SUNAT.',
+                    ], 422);
+                }
+
+                $creditNote = $noteResult['credit_note'] ?? null;
+            } elseif ($pendingInvoice) {
+                return response()->json([
+                    'status' => 'warning',
+                    'message' => 'El pago tiene un comprobante SUNAT pendiente (' .
+                        $pendingInvoice->series . '-' . $pendingInvoice->number .
+                        '). Revise su estado antes de anular el pago.',
+                ], 409);
+            }
+
+            DB::transaction(function () use ($payment) {
+                $lockedPayment = Payment::with('details')
+                    ->whereKey($payment->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lockedPayment->status === 'anulado') {
+                    return;
+                }
+
+                $this->performLocalCancellation($lockedPayment);
+            });
+
+            $message = 'Pago anulado correctamente.';
+
+            if ($creditNote) {
+                $message = 'Nota de Crédito ' . $creditNote->series . '-' .
+                    $creditNote->number . ' aceptada por SUNAT. ' .
+                    'Pago anulado correctamente.';
+            }
 
             return response()->json([
-
                 'status' => 'success',
-
-                'message' => 'Pago anulado correctamente.'
-
+                'message' => $message,
+                'credit_note' => $creditNote ? [
+                    'id' => $creditNote->id,
+                    'series' => $creditNote->series,
+                    'number' => $creditNote->number,
+                ] : null,
             ]);
         } catch (\Throwable $e) {
-
-            DB::rollBack();
+            Log::error('Error al anular pago y/o comprobante.', [
+                'payment_id' => $payment->id,
+                'exception' => $e->getMessage(),
+            ]);
 
             return response()->json([
-
                 'status' => 'error',
-
                 'message' => 'Error al anular pago.',
-
-                'error' => $e->getMessage()
-
+                'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Conserva la lógica financiera de anulación que ya utilizaba el sistema.
+     * Este método no realiza ninguna comunicación tributaria.
+     */
+    private function performLocalCancellation(Payment $payment): void
+    {
+        $payment->status = 'anulado';
+        $payment->updated_by = Auth::id();
+        $payment->save();
+
+        foreach ($payment->details as $detail) {
+            $schedule = PaymentSchedule::with('sale.lateFeeSetting')
+                ->find($detail->payment_schedule_id);
+
+            if (!$schedule) {
+                continue;
+            }
+
+            $totalCapitalPaid = PaymentDetail::where(
+                'payment_schedule_id',
+                $schedule->id
+            )
+                ->whereHas('payment', function ($q) {
+                    $q->where('status', 'activo');
+                })
+                ->sum('applied_amount');
+
+            $totalLateFeePaid = Payment::where(
+                'payment_schedule_id',
+                $schedule->id
+            )
+                ->where('status', 'activo')
+                ->sum('late_fee_paid');
+
+            $totalPaid = $totalCapitalPaid + $totalLateFeePaid;
+
+            $lateFee = $this->calculateLateFeeForSchedule($schedule);
+            $schedule->late_fee = round($lateFee, 2);
+
+            $realTotal = $schedule->total_amount + $schedule->late_fee;
+            $remaining = $realTotal - $totalPaid;
+
+            if ($remaining < 0) {
+                $remaining = 0;
+            }
+
+            $schedule->remaining_balance = $remaining;
+
+            if ($remaining <= 0) {
+                $schedule->status = 'pagado';
+            } elseif ($totalPaid > 0) {
+                $schedule->status = 'parcial';
+            } else {
+                $schedule->status = 'pendiente';
+            }
+
+            $schedule->save();
+        }
+
+        $this->updateSaleAndLotStatus($payment->sale_id);
     }
 
     /*  public function getApisPeruCompanies(

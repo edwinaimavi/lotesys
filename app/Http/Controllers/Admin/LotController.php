@@ -12,6 +12,7 @@ use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class LotController extends Controller
 {
@@ -94,6 +95,11 @@ class LotController extends Controller
 
             ->addIndexColumn()
 
+            ->addColumn('company', function ($lot) {
+
+                return $lot->project->company->business_name ?? '—';
+            })
+
             ->addColumn('project', function ($lot) {
 
                 return $lot->project->name ?? '—';
@@ -168,85 +174,37 @@ class LotController extends Controller
     }
 
 
+    /**
+     * PREVISUALIZAR FORMATO DEL CÓDIGO.
+     *
+     * El correlativo real se reserva únicamente dentro de store(), bajo
+     * transacción y bloqueo. Este endpoint NO consume números.
+     */
     public function generateCode(Request $request)
     {
         $project = Project::find($request->project_id);
 
-        $block = Block::find($request->block_id);
+        $block = Block::where('id', $request->block_id)
+            ->where('project_id', $request->project_id)
+            ->first();
 
-        if (!$project || !$block) {
-
+        if (! $project || ! $block) {
             return response()->json([
                 'code' => ''
             ]);
         }
 
-        // =====================================================
-        // GENERAR INICIALES DEL PROYECTO
-        // =====================================================
-
-        $words = explode(' ', strtoupper($project->name));
-
-        $initials = '';
-
-        foreach ($words as $word) {
-
-            if (!empty($word)) {
-
-                $initials .= substr($word, 0, 1);
-            }
-        }
-
-        // =====================================================
-        // LIMPIAR MANZANA
-        // =====================================================
-
-        $blockName = strtoupper(trim($block->name));
-
-        // MZ A -> MZA
-        $blockName = str_replace(' ', '', $blockName);
-
-        // =====================================================
-        // BASE
-        // =====================================================
-
-        $baseCode = $initials . $blockName . '-L';
-
-        // =====================================================
-        // BUSCAR ÚLTIMO
-        // =====================================================
-
-        $lastLot = Lot::where('code', 'LIKE', $baseCode . '%')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $nextNumber = 1;
-
-        if ($lastLot) {
-
-            preg_match('/L(\d+)$/', $lastLot->code, $matches);
-
-            if (isset($matches[1])) {
-
-                $nextNumber = intval($matches[1]) + 1;
-            }
-        }
-
-        $code = $baseCode . str_pad($nextNumber, 2, '0', STR_PAD_LEFT);
-
         return response()->json([
-            'code' => $code
+            'code' => $this->buildLotCodePrefix($project, $block) . '-######'
         ]);
     }
+
     /**
      * STORE
      */
     public function store(Request $request)
     {
-
-
         $data = $request->validate([
-
             'project_id' => [
                 'required',
                 'exists:projects,id'
@@ -257,12 +215,8 @@ class LotController extends Controller
                 'exists:blocks,id'
             ],
 
-            'code' => [
-                'required',
-                'string',
-                'max:100',
-                'unique:lots,code'
-            ],
+            // El código NO se acepta desde el navegador.
+            // Se genera y reserva exclusivamente en el backend.
 
             'number' => [
                 'required',
@@ -287,6 +241,7 @@ class LotController extends Controller
                 'numeric',
                 'min:0'
             ],
+
             'financed_price' => [
                 'required',
                 'numeric',
@@ -326,36 +281,37 @@ class LotController extends Controller
                 'nullable',
                 'string'
             ]
-
         ], [
-
             'project_id.required' => 'El proyecto es obligatorio.',
-
             'block_id.required' => 'La manzana es obligatoria.',
-
-            'code.required' => 'El código es obligatorio.',
-
-            'code.unique' => 'El código ya existe.',
-
             'number.required' => 'El número de lote es obligatorio.',
-
             'area.required' => 'El área es obligatoria.',
-
             'area.numeric' => 'El área debe ser numérica.',
-
             'cash_price.required' => 'El precio contado es obligatorio.',
-
             'cash_price.numeric' => 'El precio contado debe ser numérico.',
             'financed_price.required' => 'El precio financiado es obligatorio.',
-
             'financed_price.numeric' => 'El precio financiado debe ser numérico.',
             'status.required' => 'El estado es obligatorio.'
-
         ]);
 
+        $project = Project::find($data['project_id']);
+
+        $block = Block::where('id', $data['block_id'])
+            ->where('project_id', $data['project_id'])
+            ->first();
+
+        if (! $block) {
+            return response()->json([
+                'errors' => [
+                    'block_id' => [
+                        'La manzana seleccionada no pertenece al proyecto.'
+                    ]
+                ]
+            ], 422);
+        }
 
         // =====================================================
-        // VALIDAR DUPLICIDAD DE LOTE
+        // VALIDAR DUPLICIDAD DEL NÚMERO FÍSICO DEL LOTE
         // =====================================================
 
         $exists = Lot::where('project_id', $data['project_id'])
@@ -364,28 +320,25 @@ class LotController extends Controller
             ->exists();
 
         if ($exists) {
-
             return response()->json([
-
                 'errors' => [
-
                     'number' => [
                         'El número de lote ya existe en esta manzana.'
                     ]
-
                 ]
-
             ], 422);
         }
 
         try {
-
             DB::beginTransaction();
 
+            // El correlativo es GLOBAL y persistente.
+            // No depende del número físico del lote y no se reutiliza
+            // aunque un lote sea eliminado posteriormente.
+            $data['code'] = $this->reserveLotCode($project, $block);
+
             if (Auth::check()) {
-
                 $data['created_by'] = Auth::id();
-
                 $data['updated_by'] = Auth::id();
             }
 
@@ -394,28 +347,19 @@ class LotController extends Controller
             DB::commit();
 
             return response()->json([
-
                 'status' => 'success',
-
-                'message' => 'Lote registrado correctamente.',
-
+                'message' => 'Lote registrado correctamente. Código: ' . $lot->code,
                 'data' => $lot
-
             ], 201);
         } catch (\Throwable $e) {
-
             DB::rollBack();
 
             Log::error('Error creating lot: ' . $e->getMessage());
 
             return response()->json([
-
                 'status' => 'error',
-
                 'message' => 'Error al registrar el lote.',
-
                 'error' => $e->getMessage()
-
             ], 500);
         }
     }
@@ -455,18 +399,13 @@ class LotController extends Controller
         $lot = Lot::find($id);
 
         if (! $lot) {
-
             return response()->json([
-
                 'status' => 'error',
-
                 'message' => 'Lote no encontrado.'
-
             ], 404);
         }
 
         $data = $request->validate([
-
             'project_id' => [
                 'required',
                 'exists:projects,id'
@@ -477,12 +416,7 @@ class LotController extends Controller
                 'exists:blocks,id'
             ],
 
-            'code' => [
-                'required',
-                'string',
-                'max:100',
-                'unique:lots,code,' . $lot->id
-            ],
+            // El código es inmutable: se conserva el asignado al crear.
 
             'number' => [
                 'required',
@@ -547,37 +481,35 @@ class LotController extends Controller
                 'nullable',
                 'string'
             ]
-
         ], [
-
             'project_id.required' => 'El proyecto es obligatorio.',
-
             'block_id.required' => 'La manzana es obligatoria.',
-
-            'code.required' => 'El código es obligatorio.',
-
-            'code.unique' => 'El código ya existe.',
-
             'number.required' => 'El número de lote es obligatorio.',
-
             'area.required' => 'El área es obligatoria.',
-
             'area.numeric' => 'El área debe ser numérica.',
-
             'cash_price.required' => 'El precio contado es obligatorio.',
-
             'cash_price.numeric' => 'El precio contado debe ser numérico.',
-
             'financed_price.required' => 'El precio financiado es obligatorio.',
-
             'financed_price.numeric' => 'El precio financiado debe ser numérico.',
-
             'status.required' => 'El estado es obligatorio.'
-
         ]);
 
+        $block = Block::where('id', $data['block_id'])
+            ->where('project_id', $data['project_id'])
+            ->first();
+
+        if (! $block) {
+            return response()->json([
+                'errors' => [
+                    'block_id' => [
+                        'La manzana seleccionada no pertenece al proyecto.'
+                    ]
+                ]
+            ], 422);
+        }
+
         // =====================================================
-        // VALIDAR DUPLICIDAD DE LOTE
+        // VALIDAR DUPLICIDAD DEL NÚMERO FÍSICO DEL LOTE
         // =====================================================
 
         $exists = Lot::where('project_id', $data['project_id'])
@@ -587,56 +519,41 @@ class LotController extends Controller
             ->exists();
 
         if ($exists) {
-
             return response()->json([
-
                 'errors' => [
-
                     'number' => [
                         'El número de lote ya existe en esta manzana.'
                     ]
-
                 ]
-
             ], 422);
         }
 
         try {
-
             DB::beginTransaction();
 
             if (Auth::check()) {
-
                 $data['updated_by'] = Auth::id();
             }
 
+            // $data no contiene "code": el identificador técnico no cambia.
             $lot->update($data);
 
             DB::commit();
 
             return response()->json([
-
                 'status' => 'success',
-
                 'message' => 'Lote actualizado correctamente.',
-
                 'data' => $lot->fresh()
-
             ]);
         } catch (\Throwable $e) {
-
             DB::rollBack();
 
             Log::error('Error updating lot: ' . $e->getMessage());
 
             return response()->json([
-
                 'status' => 'error',
-
                 'message' => 'Error al actualizar el lote.',
-
                 'error' => $e->getMessage()
-
             ], 500);
         }
     }
@@ -655,6 +572,70 @@ class LotController extends Controller
         ]);
     }
 
+
+    /**
+     * Construye únicamente el prefijo legible del código.
+     * Ejemplo: "Madrid I" + "MZ B" => "MI-MZB".
+     */
+    private function buildLotCodePrefix(Project $project, Block $block): string
+    {
+        $projectName = strtoupper(Str::ascii(trim((string) $project->name)));
+        $words = preg_split('/\s+/', $projectName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        $initials = '';
+
+        foreach ($words as $word) {
+            $initials .= substr($word, 0, 1);
+        }
+
+        if ($initials === '') {
+            $initials = 'P' . $project->id;
+        }
+
+        $blockCode = strtoupper(Str::ascii(trim((string) $block->name)));
+        $blockCode = preg_replace('/[^A-Z0-9]+/', '', $blockCode) ?: '';
+
+        if ($blockCode === '') {
+            $blockCode = 'MZ' . $block->id;
+        }
+
+        return $initials . '-' . $blockCode;
+    }
+
+    /**
+     * Reserva el siguiente correlativo global bajo bloqueo de BD.
+     * Debe ejecutarse dentro de una transacción abierta.
+     */
+    private function reserveLotCode(Project $project, Block $block): string
+    {
+        $sequence = DB::table('lot_code_sequences')
+            ->where('id', 1)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $sequence) {
+            // Fallar de forma segura es preferible a reiniciar el contador:
+            // reiniciarlo podría reutilizar un código de un lote eliminado.
+            throw new \RuntimeException('No existe el correlativo técnico de lotes. Ejecute la migración pendiente.');
+        }
+
+        $prefix = $this->buildLotCodePrefix($project, $block);
+        $nextNumber = (int) $sequence->last_number;
+
+        do {
+            $nextNumber++;
+            $code = $prefix . '-' . str_pad((string) $nextNumber, 6, '0', STR_PAD_LEFT);
+        } while (Lot::where('code', $code)->exists());
+
+        DB::table('lot_code_sequences')
+            ->where('id', 1)
+            ->update([
+                'last_number' => $nextNumber,
+                'updated_at' => now(),
+            ]);
+
+        return $code;
+    }
 
     public function getProjectsByCompany($companyId)
     {

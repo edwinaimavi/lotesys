@@ -286,9 +286,11 @@
                                                         data-cash_price="{{ $lot->cash_price }}"
                                                         data-financed_price="{{ $lot->financed_price }}">
 
-                                                        {{ $lot->code }}
-                                                        -
-                                                        {{ $lot->project->name ?? '' }}
+                                                        {{ $lot->project?->company?->trade_name ?: ($lot->project?->company?->business_name ?? 'Sin empresa') }}
+                                                        · {{ $lot->project?->name ?? 'Sin proyecto' }}
+                                                        · {{ $lot->block?->name ?? 'Sin manzana' }}
+                                                        · Lote {{ $lot->number ?? '—' }}
+                                                        · {{ $lot->code }}
 
                                                     </option>
                                                 @endif

@@ -607,6 +607,25 @@
             overflow-x: auto !important;
         }
 
+        /*
+         * DataTables genera filas Bootstrap (.row) dentro de su wrapper.
+         * Bootstrap aplica márgenes horizontales negativos a .row y, cuando el
+         * wrapper está dentro de .table-responsive, esos pocos píxeles crean un
+         * overflow artificial que se muestra como una barra/raya horizontal aun
+         * cuando la tabla sí cabe en pantalla. Quitamos solo ese desborde del
+         * layout de DataTables; el scroll horizontal real de .table-responsive
+         * se conserva para tablas anchas y para pantallas pequeñas.
+         */
+        .table-responsive > .dataTables_wrapper {
+            width: 100% !important;
+            min-width: 0;
+        }
+
+        .table-responsive > .dataTables_wrapper > .row {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+
         table.dataTable,
         .tableStiles {
             width: 100% !important;

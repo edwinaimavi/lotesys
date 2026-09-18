@@ -107,7 +107,13 @@
 
                             <th>CLIENTE</th>
 
-                            <th>LOTE</th>
+                            <th>EMPRESA</th>
+
+                            <th>PROYECTO</th>
+
+                            <th>MZ / LOTE</th>
+
+                            <th>CÓDIGO LOTE</th>
 
                             <th>FECHA</th>
 

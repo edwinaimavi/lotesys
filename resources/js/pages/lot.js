@@ -96,6 +96,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const blockId = $('#block_id').val();
 
+        // En edición el código es inmutable.
+        // Aunque cambie proyecto/manzana, se conserva el identificador original.
+        if ($('#lotForm').attr('data-id')) {
+            return;
+        }
+
         if (!projectId || !blockId) {
 
             $('#code').val('');
@@ -119,6 +125,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
             success: function (response) {
 
+                // Solo es una previsualización del formato.
+                // El correlativo real se reserva en el backend al guardar.
                 $('#code').val(response.code);
 
             },
@@ -375,6 +383,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         $form.removeAttr('data-id');
 
+        $('#code').val('');
+
         $('#lotModalLabel').html('NUEVO LOTE');
 
         $('#block_id').html(`
@@ -400,6 +410,8 @@ document.addEventListener("DOMContentLoaded", function () {
     $(document).on('click', '.viewLot', function () {
 
         const id = $(this).data('id');
+
+        const company = $(this).data('company');
 
         const project = $(this).data('project');
 
@@ -442,6 +454,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // =====================================================
 
         $('#vl_id').text(id || '—');
+
+        $('#vl_company').text(company || '—');
+
+        $('#vl_company_name').text(company || '—');
 
         $('#vl_project').text(project || '—');
 
@@ -499,6 +515,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         $('#vl_updated_at').text(updated_at || '—');
 
+        $('#vl_created_by_summary').text(created_by || '—');
+
         $('#vl_created_by_user').text(created_by || '—');
 
         $('#vl_updated_by_user').text(updated_by || '—');
@@ -534,8 +552,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         $('#vl_status')
             .removeClass()
-            .addClass(`${badgeClass} py-2 px-3`)
-            .text(status);
+            .addClass(`${badgeClass} rounded-pill py-2 px-3 text-capitalize`)
+            .text(status || '—');
 
         $('#viewLotModal').modal('show');
 
@@ -716,6 +734,11 @@ document.addEventListener("DOMContentLoaded", function () {
             {
                 data: 'id',
                 name: 'id'
+            },
+
+            {
+                data: 'company',
+                name: 'company'
             },
 
             {

@@ -140,6 +140,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 );
 
                 $(option)
+                    .attr('data-company', lot.company || '')
+                    .attr('data-project', lot.project || '')
+                    .attr('data-block', lot.block || '')
+                    .attr('data-lot_number', lot.lot_number || '')
+                    .attr('data-lot_code', lot.lot_code || '')
                     .attr('data-cash_price', lot.cash_price)
                     .attr('data-financed_price', lot.financed_price);
 
@@ -682,8 +687,23 @@ document.addEventListener("DOMContentLoaded", function () {
             },
 
             {
-                data: 'lot',
-                name: 'lot'
+                data: 'company',
+                name: 'company'
+            },
+
+            {
+                data: 'project',
+                name: 'project'
+            },
+
+            {
+                data: 'lot_location',
+                name: 'lot_location'
+            },
+
+            {
+                data: 'lot_code',
+                name: 'lot_code'
             },
 
             {
@@ -920,8 +940,28 @@ document.addEventListener("DOMContentLoaded", function () {
             $(this).data('customer') || '—'
         );
 
-        $('#vs_lote').text(
-            $(this).data('lot') || '—'
+        $('#vs_empresa').text(
+            $(this).data('company') || '—'
+        );
+
+        $('#vs_empresa_ruc').text(
+            $(this).data('company_ruc') || '—'
+        );
+
+        $('#vs_proyecto').text(
+            $(this).data('project') || '—'
+        );
+
+        $('#vs_manzana').text(
+            $(this).data('block') || '—'
+        );
+
+        $('#vs_lote_numero').text(
+            $(this).data('lot_number') || '—'
+        );
+
+        $('#vs_lote_codigo').text(
+            $(this).data('lot_code') || $(this).data('lot') || '—'
         );
 
         $('#vs_fecha_venta').text(
@@ -1250,8 +1290,20 @@ document.addEventListener("DOMContentLoaded", function () {
             $(this).data('customer') || '—'
         );
 
+        $('#ps_company').text(
+            $(this).data('company') || '—'
+        );
+
+        $('#ps_project').text(
+            $(this).data('project') || '—'
+        );
+
+        const scheduleBlock = $(this).data('block') || '—';
+        const scheduleLotNumber = $(this).data('lot_number') || '—';
+        const scheduleLotCode = $(this).data('lot_code') || '—';
+
         $('#ps_lot').text(
-            $(this).data('lot') || '—'
+            `${scheduleBlock} · Lote ${scheduleLotNumber} · ${scheduleLotCode}`
         );
 
         // =====================================================
@@ -1704,176 +1756,182 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // =========================================================
+// UTILIDADES DE IMPRESIÓN / PDF DEL CRONOGRAMA
+// =========================================================
+
+function buildScheduleExportClone() {
+
+    const source = document.querySelector(
+        '#paymentScheduleModal .schedule-modal-content'
+    );
+
+    if (!source) {
+        return null;
+    }
+
+    const host = document.createElement('div');
+
+    host.className = 'schedule-export-host schedule-scope';
+
+    const clone = source.cloneNode(true);
+
+    const footer = clone.querySelector('.schedule-footer');
+
+    if (footer) {
+        footer.remove();
+    }
+
+    const closeButton = clone.querySelector('.close');
+
+    if (closeButton) {
+        closeButton.remove();
+    }
+
+    host.appendChild(clone);
+
+    document.body.appendChild(host);
+
+    return {
+        host,
+        element: clone
+    };
+
+}
+
+function getScheduleStyles() {
+
+    const modal = document.querySelector('#paymentScheduleModal');
+
+    const style = modal
+        ? modal.nextElementSibling
+        : null;
+
+    if (
+        style &&
+        style.tagName === 'STYLE'
+    ) {
+        return style.innerHTML;
+    }
+
+    return '';
+
+}
+
+// =========================================================
 // IMPRIMIR CRONOGRAMA
 // =========================================================
 
 $(document).on('click', '#btnPrintSchedule', function () {
 
-    // =============================================
-    // OBTENER CONTENIDO
-    // =============================================
+    const exportClone = buildScheduleExportClone();
 
-    const printContents = document.querySelector(
-        '#paymentScheduleModal .modal-content'
-    ).innerHTML;
+    if (!exportClone) {
+        return;
+    }
 
-    // =============================================
-    // NUEVA VENTANA
-    // =============================================
+    const printableHtml = exportClone.element.outerHTML;
+
+    exportClone.host.remove();
 
     const printWindow = window.open(
         '',
         '',
-        'width=1200,height=900'
+        'width=1400,height=900'
     );
 
-    // =============================================
-    // HTML
-    // =============================================
+    if (!printWindow) {
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Ventana bloqueada',
+            text: 'Permite ventanas emergentes para imprimir el cronograma.'
+        });
+
+        return;
+
+    }
+
+    const scheduleStyles = getScheduleStyles();
+
+    printWindow.document.open();
 
     printWindow.document.write(`
+        <!doctype html>
         <html>
-
         <head>
+            <meta charset="utf-8">
+            <title>Cronograma Financiero</title>
 
-            <title>
-                Cronograma Financiero
-            </title>
-
-            <!-- BOOTSTRAP -->
             <link rel="stylesheet"
                 href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
 
-            <!-- FONT AWESOME -->
             <link rel="stylesheet"
                 href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
             <style>
+                ${scheduleStyles}
 
                 body {
-
-                    background: white;
-                    padding: 20px;
+                    margin: 0;
+                    padding: 12px;
+                    background: #ffffff;
                     font-family: Arial, sans-serif;
-
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
                 }
 
-                .modal-footer,
-                .close {
+                .schedule-scope .schedule-modal-content {
+                    width: 100% !important;
+                    max-height: none !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                    box-shadow: none !important;
+                    border: 0 !important;
+                }
 
+                .schedule-scope .schedule-body,
+                .schedule-scope .schedule-table-wrap,
+                .schedule-scope .table-responsive {
+                    max-height: none !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+
+                .schedule-scope .schedule-footer,
+                .schedule-scope .close {
                     display: none !important;
-
                 }
 
-                .summary-card {
-
-                    background: white;
-                    border-radius: 18px;
-                    padding: 18px;
-                    border: 1px solid #edf2f7;
-                    box-shadow: 0 2px 12px rgba(0,0,0,.04);
-                    height: 100%;
-
+                @page {
+                    size: A4 landscape;
+                    margin: 8mm;
                 }
-
-                .summary-card small {
-
-                    display: block;
-                    color: #94a3b8;
-                    margin-bottom: 6px;
-                    font-size: 11px;
-                    font-weight: 700;
-                    text-transform: uppercase;
-
-                }
-
-                .summary-info h4 {
-
-                    color: #0284c7;
-
-                }
-
-                .summary-success h4 {
-
-                    color: #16a34a;
-
-                }
-
-                .schedule-thead {
-
-                    background: #f1f5f9;
-
-                }
-
-                .schedule-thead th {
-
-                    border: none !important;
-                    padding: 14px;
-                    font-size: 12px;
-                    font-weight: 700;
-                    color: #334155;
-
-                }
-
-                table tbody td {
-
-                    padding: 12px !important;
-                    font-size: 12px;
-
-                }
-
-                .badge {
-
-                    padding: 7px 12px;
-                    border-radius: 50px;
-                    font-size: 11px;
-                    font-weight: 700;
-
-                }
-
-                @media print {
-
-                    body {
-
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-
-                    }
-
-                }
-
             </style>
-
         </head>
 
         <body>
-
-            ${printContents}
-
+            <div class="schedule-scope">
+                ${printableHtml}
+            </div>
         </body>
-
         </html>
     `);
 
     printWindow.document.close();
 
-    // =============================================
-    // ESPERAR Y IMPRIMIR
-    // =============================================
+    printWindow.onload = function () {
 
-    setTimeout(() => {
+        setTimeout(() => {
 
-        printWindow.focus();
+            printWindow.focus();
 
-        printWindow.print();
+            printWindow.print();
 
-    }, 800);
+        }, 250);
+
+    };
 
 });
-
-// =========================================================
-// EXPORTAR PDF CRONOGRAMA
-// =========================================================
 
 // =========================================================
 // EXPORTAR PDF CRONOGRAMA
@@ -1883,6 +1941,8 @@ $(document).on('click', '#btnPdfSchedule', async function () {
 
     const btn = $(this);
 
+    const originalHtml = btn.html();
+
     btn.prop('disabled', true);
 
     btn.html(`
@@ -1890,155 +1950,46 @@ $(document).on('click', '#btnPdfSchedule', async function () {
         Generando PDF...
     `);
 
+    let exportClone = null;
+
     try {
 
-        // =====================================================
-        // CONTENEDOR REAL
-        // =====================================================
+        exportClone = buildScheduleExportClone();
 
-        const element = document.querySelector(
-            '#paymentScheduleModal .modal-content'
-        );
+        if (!exportClone) {
+            throw new Error('No se encontró el cronograma para exportar.');
+        }
 
-        // =====================================================
-        // QUITAR SCROLL Y EFECTOS
-        // =====================================================
+        await new Promise(resolve => setTimeout(resolve, 180));
 
-        $('#paymentScheduleModal')
-            .removeClass('fade');
-
-        $('#paymentScheduleModal .modal-dialog')
-            .css({
-
-                'transform': 'none',
-                'max-width': '1400px',
-                'width': '1400px'
-
-            });
-
-        $('#paymentScheduleModal .modal-content')
-            .css({
-
-                'border': 'none',
-                'box-shadow': 'none',
-                'background': '#ffffff'
-
-            });
-
-        $('#paymentScheduleModal .modal-body')
-            .css({
-
-                'overflow': 'visible',
-                'max-height': 'none',
-                'height': 'auto',
-                'background': '#ffffff'
-
-            });
-
-        $('body').css({
-
-            'overflow': 'visible',
-            'background': '#ffffff'
-
-        });
-
-        // =====================================================
-        // ESPERAR RENDER
-        // =====================================================
-
-        await new Promise(resolve =>
-            setTimeout(resolve, 700)
-        );
-
-        // =====================================================
-        // CAPTURA
-        // =====================================================
+        const element = exportClone.element;
 
         const canvas = await html2canvas(element, {
 
-            scale: 2,
-
+            scale: 1.6,
             useCORS: true,
-
             allowTaint: true,
-
             logging: false,
-
             backgroundColor: '#ffffff',
-
-            removeContainer: true,
-
-            foreignObjectRendering: false,
-
             scrollX: 0,
             scrollY: 0,
-
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight,
-
-            onclone: function (clonedDoc) {
-
-                // =====================================
-                // MODAL CLONADO
-                // =====================================
-
-                const modal = clonedDoc.querySelector(
-                    '#paymentScheduleModal'
-                );
-
-                if (modal) {
-
-                    modal.style.opacity = '1';
-
-                    modal.style.background = '#ffffff';
-
-                    modal.style.filter = 'none';
-
-                    modal.style.transform = 'none';
-
-                }
-
-                // =====================================
-                // TODOS LOS ELEMENTOS
-                // =====================================
-
-                clonedDoc.querySelectorAll('*').forEach(el => {
-
-                    el.style.opacity = '1';
-
-                    el.style.filter = 'none';
-
-                    el.style.backdropFilter = 'none';
-
-                });
-
-                // =====================================
-                // BODY
-                // =====================================
-
-                clonedDoc.body.style.background =
-                    '#ffffff';
-
-            }
+            windowWidth: 1280,
+            windowHeight: Math.max(
+                element.scrollHeight,
+                900
+            )
 
         });
-
-        const imgData = canvas.toDataURL(
-            'image/png',
-            1.0
-        );
-
-        // =====================================================
-        // PDF
-        // =====================================================
 
         const { jsPDF } = window.jspdf;
 
         const pdf = new jsPDF(
-            'p',
+            'l',
             'mm',
             'a4'
         );
+
+        const margin = 6;
 
         const pdfWidth =
             pdf.internal.pageSize.getWidth();
@@ -2046,119 +1997,158 @@ $(document).on('click', '#btnPdfSchedule', async function () {
         const pdfHeight =
             pdf.internal.pageSize.getHeight();
 
-        const imgWidth = pdfWidth;
+        const usableWidth =
+            pdfWidth - (margin * 2);
 
-        const imgHeight =
-            (canvas.height * imgWidth) /
-            canvas.width;
+        const usableHeight =
+            pdfHeight - (margin * 2) - 4;
 
-        let heightLeft = imgHeight;
+        const pixelsPerMm =
+            canvas.width / usableWidth;
 
-        let position = 0;
-
-        // =====================================================
-        // PRIMERA PÁGINA
-        // =====================================================
-
-        pdf.addImage(
-
-            imgData,
-
-            'PNG',
-
-            0,
-
-            position,
-
-            imgWidth,
-
-            imgHeight
-
-        );
-
-        heightLeft -= pdfHeight;
-
-        // =====================================================
-        // MÁS PÁGINAS
-        // =====================================================
-
-        while (heightLeft > 0) {
-
-            position = heightLeft - imgHeight;
-
-            pdf.addPage();
-
-            pdf.addImage(
-
-                imgData,
-
-                'PNG',
-
-                0,
-
-                position,
-
-                imgWidth,
-
-                imgHeight
-
+        const pageHeightPx =
+            Math.floor(
+                usableHeight * pixelsPerMm
             );
 
-            heightLeft -= pdfHeight;
+        const totalPages =
+            Math.max(
+                1,
+                Math.ceil(
+                    canvas.height / pageHeightPx
+                )
+            );
+
+        let sourceY = 0;
+        let pageNumber = 1;
+
+        while (sourceY < canvas.height) {
+
+            const sliceHeight = Math.min(
+                pageHeightPx,
+                canvas.height - sourceY
+            );
+
+            const pageCanvas =
+                document.createElement('canvas');
+
+            pageCanvas.width =
+                canvas.width;
+
+            pageCanvas.height =
+                sliceHeight;
+
+            const context =
+                pageCanvas.getContext('2d');
+
+            context.fillStyle = '#ffffff';
+
+            context.fillRect(
+                0,
+                0,
+                pageCanvas.width,
+                pageCanvas.height
+            );
+
+            context.drawImage(
+                canvas,
+                0,
+                sourceY,
+                canvas.width,
+                sliceHeight,
+                0,
+                0,
+                canvas.width,
+                sliceHeight
+            );
+
+            if (pageNumber > 1) {
+                pdf.addPage();
+            }
+
+            const sliceHeightMm =
+                sliceHeight / pixelsPerMm;
+
+            const imageData =
+                pageCanvas.toDataURL(
+                    'image/jpeg',
+                    0.95
+                );
+
+            pdf.addImage(
+                imageData,
+                'JPEG',
+                margin,
+                margin,
+                usableWidth,
+                sliceHeightMm,
+                undefined,
+                'FAST'
+            );
+
+            pdf.setFontSize(7);
+
+            pdf.setTextColor(
+                110,
+                120,
+                130
+            );
+
+            pdf.text(
+                `Página ${pageNumber} de ${totalPages}`,
+                pdfWidth - margin,
+                pdfHeight - 3,
+                {
+                    align: 'right'
+                }
+            );
+
+            sourceY += sliceHeight;
+
+            pageNumber++;
 
         }
 
-        // =====================================================
-        // EXPORTAR
-        // =====================================================
-
         const saleCode =
-            $('#ps_sale_code').text().trim();
+            $('#ps_sale_code')
+                .text()
+                .trim()
+                .replace(
+                    /[^A-Za-z0-9_-]+/g,
+                    '_'
+                );
 
         pdf.save(
-            `Cronograma_${saleCode}.pdf`
+            `Cronograma_${saleCode || 'Venta'}.pdf`
         );
-
-        // =====================================================
-        // RESTAURAR
-        // =====================================================
-
-        $('#paymentScheduleModal')
-            .addClass('fade');
-
-        $('#paymentScheduleModal .modal-dialog')
-            .attr('style', '');
-
-        $('#paymentScheduleModal .modal-content')
-            .attr('style', '');
-
-        $('#paymentScheduleModal .modal-body')
-            .attr('style', '');
-
-        $('body').attr('style', '');
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            'Error al generar PDF de cronograma:',
+            error
+        );
 
         Swal.fire({
 
             icon: 'error',
-
-            title: 'Error',
-
-            text: 'No se pudo generar el PDF'
+            title: 'No se pudo generar el PDF',
+            text: 'El cronograma no pudo exportarse completo. Intenta nuevamente.'
 
         });
 
     } finally {
 
+        if (
+            exportClone &&
+            exportClone.host
+        ) {
+            exportClone.host.remove();
+        }
+
         btn.prop('disabled', false);
 
-        btn.html(`
-            <i class="fas fa-file-pdf mr-1"></i>
-            Exportar PDF
-        `);
+        btn.html(originalHtml);
 
     }
 

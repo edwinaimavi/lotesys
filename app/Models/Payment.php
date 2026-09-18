@@ -80,4 +80,9 @@ class Payment extends Model
             END
         ");
     }
+
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }

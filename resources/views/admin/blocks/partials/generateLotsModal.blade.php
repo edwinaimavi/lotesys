@@ -196,10 +196,12 @@
                                                     Estado Inicial
                                                 </label>
 
-                                                <input type="text"
-                                                       class="form-control bg-dark text-white font-weight-bold"
-                                                       value="BLOQUEADO"
-                                                       readonly>
+                                                <div class="form-control font-weight-bold d-flex align-items-center"
+                                                     role="textbox"
+                                                     aria-readonly="true"
+                                                     style="background-color:#343a40 !important; color:#ffffff !important; opacity:1; cursor:not-allowed;">
+                                                    BLOQUEADO
+                                                </div>
 
                                             </div>
 

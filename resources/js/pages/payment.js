@@ -85,6 +85,16 @@ document.addEventListener("DOMContentLoaded", function () {
             },
 
             {
+                data: 'company',
+                name: 'company'
+            },
+
+            {
+                data: 'property',
+                name: 'property'
+            },
+
+            {
                 data: 'installment',
                 name: 'installment'
             },
@@ -478,87 +488,144 @@ document.addEventListener("DOMContentLoaded", function () {
 
     $(document).on('click', '.cancelPayment', function () {
 
-        const id = $(this).data('id');
+        const button = $(this);
+        const id = button.data('id');
+        const hasAcceptedCpe = Number(button.attr('data-has-accepted-cpe')) === 1;
+        const hasPendingCpe = Number(button.attr('data-has-pending-cpe')) === 1;
+
+        if (hasPendingCpe && !hasAcceptedCpe) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Comprobante pendiente',
+                text: 'Este pago tiene un comprobante SUNAT pendiente. Revise su estado antes de anular el pago.'
+            });
+            return;
+        }
+
+        if (hasAcceptedCpe) {
+            const cpeLabel = button.attr('data-cpe-label') || 'Comprobante SUNAT';
+            const customer = button.attr('data-cpe-customer') || '—';
+            const rawAmount = parseFloat(button.attr('data-cpe-amount'));
+            const amount = Number.isFinite(rawAmount)
+                ? `S/ ${rawAmount.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : '—';
+
+            Swal.fire({
+                title: 'Anular pago y comprobante',
+                html: `
+                    <div class="text-left border rounded p-3 mb-3 bg-light">
+                        <div class="mb-2"><strong>Comprobante:</strong> ${escapePaymentHtml(cpeLabel)}</div>
+                        <div class="mb-2"><strong>Cliente:</strong> ${escapePaymentHtml(customer)}</div>
+                        <div class="mb-2"><strong>Monto:</strong> ${escapePaymentHtml(amount)}</div>
+                        <div><strong>Motivo SUNAT:</strong> 01 - Anulación de la operación</div>
+                    </div>
+                    <div class="text-left small text-muted">
+                        Primero se emitirá una Nota de Crédito. El pago y el cronograma
+                        solo se revertirán si SUNAT confirma la Nota de Crédito.
+                    </div>
+                `,
+                input: 'textarea',
+                inputLabel: 'Motivo / sustento de la anulación',
+                inputPlaceholder: 'Ej.: Pago registrado por error...',
+                inputAttributes: {
+                    maxlength: 500,
+                    'aria-label': 'Motivo de anulación'
+                },
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Emitir NC y anular',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#d33',
+                focusConfirm: false,
+                inputValidator: (value) => {
+                    const reason = String(value || '').trim();
+                    if (reason.length < 5) {
+                        return 'Ingrese un motivo de al menos 5 caracteres.';
+                    }
+                    if (reason.length > 500) {
+                        return 'El motivo no puede superar los 500 caracteres.';
+                    }
+                    return null;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    submitPaymentCancellation(id, String(result.value || '').trim());
+                }
+            });
+
+            return;
+        }
 
         Swal.fire({
-
             title: '¿Anular pago?',
-
             html: `
-            Esta acción revertirá:
-            <br><br>
-
-            • cuotas pagadas
-            <br>
-            • saldos
-            <br>
-            • estados del cronograma
-        `,
-
+                Esta acción revertirá:
+                <br><br>
+                • cuotas pagadas
+                <br>
+                • saldos
+                <br>
+                • estados del cronograma
+            `,
             icon: 'warning',
-
             showCancelButton: true,
-
             confirmButtonText: 'Sí, anular',
-
             cancelButtonText: 'Cancelar',
-
             confirmButtonColor: '#d33'
-
         }).then((result) => {
-
             if (result.isConfirmed) {
-
-                $.ajax({
-
-                    url: `/admin/payments/${id}/cancel`,
-
-                    type: 'POST',
-
-                    success: function (response) {
-
-                        tablePayment.ajax.reload(null, false);
-
-                        Swal.fire({
-
-                            icon: 'success',
-
-                            title: response.message,
-
-                            toast: true,
-
-                            position: 'top-end',
-
-                            showConfirmButton: false,
-
-                            timer: 3000
-
-                        });
-
-                    },
-
-                    error: function (xhr) {
-
-                        Swal.fire({
-
-                            icon: 'error',
-
-                            title: 'Error',
-
-                            text: xhr.responseJSON?.message ||
-                                'Error al anular pago'
-
-                        });
-
-                    }
-
-                });
-
+                submitPaymentCancellation(id);
             }
-
         });
 
     });
+
+    function submitPaymentCancellation(id, cancellationReason = null) {
+        const data = {};
+
+        if (cancellationReason) {
+            data.cancellation_reason = cancellationReason;
+        }
+
+        $.ajax({
+            url: `/admin/payments/${id}/cancel`,
+            type: 'POST',
+            data: data,
+            beforeSend: function () {
+                Swal.fire({
+                    title: cancellationReason
+                        ? 'Procesando Nota de Crédito...'
+                        : 'Anulando pago...',
+                    text: 'Espere un momento.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => Swal.showLoading()
+                });
+            },
+            success: function (response) {
+                tablePayment.ajax.reload(null, false);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Operación completada',
+                    text: response.message,
+                    confirmButtonText: 'Aceptar'
+                });
+            },
+            error: function (xhr) {
+                Swal.fire({
+                    icon: xhr.status === 409 ? 'warning' : 'error',
+                    title: xhr.status === 409 ? 'Revisión necesaria' : 'No se pudo anular',
+                    text: xhr.responseJSON?.message || 'Error al anular pago'
+                });
+            }
+        });
+    }
+
+    function escapePaymentHtml(value) {
+        return $('<div>').text(String(value ?? '')).html();
+    }
 
     // =========================================================
     // VER DETALLE
@@ -566,7 +633,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     $(document).on('click', '.viewPayment', function () {
 
-        const status = $(this).data('status');
+        const $button = $(this);
+        const status = String($button.data('status') || '').toLowerCase();
+        const amount = parseFloat($button.data('amount') || 0);
+        const lateFee = parseFloat($button.data('late_fee_paid') || 0);
+        const discount = parseFloat($button.data('discount') || 0);
 
         let badgeClass = 'badge-secondary';
 
@@ -578,80 +649,41 @@ document.addEventListener("DOMContentLoaded", function () {
             badgeClass = 'badge-danger';
         }
 
-        $('#vp_sale').text(
-            $(this).data('sale') || '—'
-        );
+        const formatLabel = (value) => String(value || '—')
+            .replaceAll('_', ' ')
+            .replace(/\b\w/g, letter => letter.toUpperCase());
 
-        $('#vp_schedule').text(
-            $(this).data('installment') || '—'
-        );
+        $('#vp_id').text($button.data('id') || '—');
+        $('#vp_sale').text($button.data('sale') || '—');
+        $('#vp_customer').text($button.data('customer') || '—');
+        $('#vp_company').text($button.data('company') || '—');
+        $('#vp_company_ruc').text($button.data('company_ruc') || '—');
+        $('#vp_project').text($button.data('project') || '—');
+        $('#vp_block').text($button.data('block') || '—');
+        $('#vp_lot_number').text($button.data('lot_number') || '—');
+        $('#vp_lot_code').text($button.data('lot_code') || '—');
+        $('#vp_schedule').text($button.data('installment') || '—');
+        $('#vp_payment_date').text(formatPaymentDateForDisplay($button.data('payment_date')));
+        $('#vp_payment_type').text(formatLabel($button.data('payment_type')));
+        $('#vp_payment_method').text(formatLabel($button.data('payment_method')));
+        $('#vp_operation_number').text($button.data('operation_number') || '—');
+        $('#vp_observation').text($button.data('observation') || 'Sin observación');
 
-        $('#vp_payment_type').text(
-            $(this).data('payment_type') || '—'
-        );
-
-        $('#vp_payment_date').text(
-            $(this).data('payment_date') || '—'
-        );
-
-        $('#vp_amount').text(
-            'S/ ' + parseFloat($(this).data('amount') || 0).toFixed(2)
-        );
-
-        $('#vp_late_fee').text(
-            'S/ ' + parseFloat($(this).data('late_fee_paid') || 0).toFixed(2)
-        );
-
-        $('#vp_discount').text(
-            'S/ ' + parseFloat($(this).data('discount') || 0).toFixed(2)
-        );
-
-        $('#vp_payment_method').text(
-            $(this).data('payment_method') || '—'
-        );
-
-        $('#vp_operation_number').text(
-            $(this).data('operation_number') || '—'
-        );
-
-        $('#vp_observation').text(
-            $(this).data('observation') || '—'
-        );
+        $('#vp_amount').text('S/ ' + amount.toFixed(2));
+        $('#vp_late_fee').text('S/ ' + lateFee.toFixed(2));
+        $('#vp_discount').text('S/ ' + discount.toFixed(2));
 
         $('#vp_status')
             .removeClass('badge-success badge-danger badge-secondary')
             .addClass(badgeClass)
             .text(status ? status.toUpperCase() : '—');
 
-        $('#vp_created_by').text(
-            $(this).data('created_by') || '—'
-        );
-
-        $('#vp_updated_by').text(
-            $(this).data('updated_by') || '—'
-        );
-
-        $('#vp_created_at').text(
-            $(this).data('created_at') || '—'
-        );
-
-        $('#vp_updated_at').text(
-            $(this).data('updated_at') || '—'
-        );
+        $('#vp_created_by').text($button.data('created_by') || '—');
+        $('#vp_updated_by').text($button.data('updated_by') || '—');
+        $('#vp_created_at').text($button.data('created_at') || '—');
+        $('#vp_updated_at').text($button.data('updated_at') || '—');
 
         $('#viewPaymentModal').modal('show');
-
-        $('#vp_id').text(
-            $(this).data('id') || '—'
-        );
-
-        $('#vp_created_by_user').text(
-            $(this).data('created_by') || '—'
-        );
-
-        $('#vp_updated_by_user').text(
-            $(this).data('updated_by') || '—'
-        );
 
     });
 

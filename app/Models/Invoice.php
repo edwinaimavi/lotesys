@@ -11,6 +11,7 @@ class Invoice extends Model
         'payment_id',
         'sale_id',
         'company_id',
+        'related_invoice_id',
         'document_type',
         'series',
         'number',
@@ -42,11 +43,19 @@ class Invoice extends Model
         'sunat_ticket',
         'sunat_code',
         'sunat_message',
+        'credit_note_reason_code',
+        'credit_note_reason',
+        'voided_at',
+        'voided_by',
 
         'created_by',
         'updated_by',
     ];
 
+    protected $casts = [
+        'issue_date' => 'date',
+        'voided_at' => 'datetime',
+    ];
 
     public function company()
     {
@@ -66,5 +75,20 @@ class Invoice extends Model
     public function apiLogs()
     {
         return $this->hasMany(InvoiceApiLog::class);
+    }
+
+    public function affectedInvoice()
+    {
+        return $this->belongsTo(self::class, 'related_invoice_id');
+    }
+
+    public function creditNotes()
+    {
+        return $this->hasMany(self::class, 'related_invoice_id');
+    }
+
+    public function voidedBy()
+    {
+        return $this->belongsTo(User::class, 'voided_by');
     }
 }

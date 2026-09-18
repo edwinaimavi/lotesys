@@ -12,6 +12,7 @@ use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class BlockController extends Controller
 {
@@ -20,7 +21,8 @@ class BlockController extends Controller
      */
     public function index()
     {
-        $projects = Project::where('status', 1)
+        $projects = Project::with('company')
+            ->where('status', 1)
             ->orderBy('name')
             ->get();
 
@@ -33,7 +35,7 @@ class BlockController extends Controller
     public function list()
     {
         $blocks = Block::with(
-            'project',
+            'project.company',
             'creator',
             'updater',
             'lots'
@@ -45,6 +47,15 @@ class BlockController extends Controller
         return DataTables::of($blocks)
 
             ->addIndexColumn()
+
+            ->addColumn('company', function ($block) {
+
+                $company = $block->project?->company;
+
+                return $company?->business_name
+                    ?? $company?->trade_name
+                    ?? '—';
+            })
 
             ->addColumn('project', function ($block) {
 
@@ -437,113 +448,6 @@ class BlockController extends Controller
             DB::beginTransaction();
 
             // =====================================================
-            // MANZANA
-            // Ejemplo: MZ A => MZA
-            // =====================================================
-
-            $blockName = strtoupper(trim($block->name));
-
-            $blockName = str_replace(' ', '', $blockName);
-
-            $blockName = preg_replace('/[^A-Z0-9]/', '', $blockName);
-
-            // =====================================================
-            // PREFIJO DEL PROYECTO
-            //
-            // IMPORTANTE:
-            // 1. Si el proyecto ya tiene lotes, reutiliza el prefijo existente.
-            //    Ejemplo: Madrid II ya tiene MIMZB-L21 => seguirá usando MI.
-            //
-            // 2. Si el proyecto no tiene lotes, genera prefijo nuevo.
-            //    Ejemplo: Madrid I => M1
-            //             Madrid II => M2
-            // =====================================================
-
-            $existingPrefix = null;
-
-            $existingProjectCodes = Lot::where('project_id', $project->id)
-                ->whereNotNull('code')
-                ->orderBy('id', 'asc')
-                ->pluck('code');
-
-            foreach ($existingProjectCodes as $existingCode) {
-
-                $existingCode = strtoupper(trim($existingCode));
-
-                /*
-             * Detecta códigos como:
-             * MIMZA-L01   => prefijo MI
-             * MIMZB-L21   => prefijo MI
-             * M1MZA-L01   => prefijo M1
-             * RLPMZA-L01  => prefijo RLP
-             */
-                if (preg_match('/^(.+?)(MZ[A-Z0-9]+)-L[0-9]+$/', $existingCode, $matches)) {
-
-                    $existingPrefix = $matches[1];
-
-                    break;
-                }
-            }
-
-            if ($existingPrefix) {
-
-                $initials = $existingPrefix;
-            } else {
-
-                // =====================================================
-                // GENERAR PREFIJO NUEVO DESDE EL NOMBRE DEL PROYECTO
-                // Madrid I   => M1
-                // Madrid II  => M2
-                // Madrid III => M3
-                // Residencial Las Palmeras => RLP
-                // =====================================================
-
-                $projectName = strtoupper(trim($project->name));
-
-                $projectName = preg_replace('/\s+/', ' ', $projectName);
-
-                $words = explode(' ', $projectName);
-
-                $romanMap = [
-                    'I' => '1',
-                    'II' => '2',
-                    'III' => '3',
-                    'IV' => '4',
-                    'V' => '5',
-                    'VI' => '6',
-                    'VII' => '7',
-                    'VIII' => '8',
-                    'IX' => '9',
-                    'X' => '10',
-                ];
-
-                $initials = '';
-
-                foreach ($words as $word) {
-
-                    $word = trim($word);
-
-                    if ($word === '') {
-                        continue;
-                    }
-
-                    if (isset($romanMap[$word])) {
-
-                        $initials .= $romanMap[$word];
-                    } else {
-
-                        $initials .= substr($word, 0, 1);
-                    }
-                }
-
-                $initials = preg_replace('/[^A-Z0-9]/', '', $initials);
-
-                if ($initials === '') {
-                    $initials = 'P' . $project->id;
-                }
-            }
-
-            // =====================================================
             // BUSCAR LOTES EXISTENTES DE ESA MISMA MANZANA
             // =====================================================
 
@@ -577,45 +481,9 @@ class BlockController extends Controller
 
                 $lotNumber = str_pad($i, 2, '0', STR_PAD_LEFT);
 
-                /*
-             * Ejemplos:
-             *
-             * Madrid II existente:
-             * MI + MZB + L21 = MIMZB-L21
-             *
-             * Madrid I nuevo:
-             * M1 + MZA + L01 = M1MZA-L01
-             */
-                $code = $initials
-                    . $blockName
-                    . '-L'
-                    . $lotNumber;
-
-                // =====================================================
-                // VALIDACIÓN EXTRA GLOBAL
-                //
-                // Si el código ya existe en cualquier proyecto,
-                // agregamos el ID del proyecto para evitar choque.
-                // No modifica códigos antiguos.
-                // =====================================================
-
-                if (Lot::where('code', $code)->exists()) {
-
-                    $code = $initials
-                        . 'P'
-                        . $project->id
-                        . $blockName
-                        . '-L'
-                        . $lotNumber;
-                }
-
-                // Si incluso con el ID del proyecto existe, se omite
-                if (Lot::where('code', $code)->exists()) {
-
-                    $skipped++;
-
-                    continue;
-                }
+                // El código técnico es independiente del número físico del lote.
+                // Usa el mismo correlativo global e inmutable que el alta individual.
+                $code = $this->reserveLotCode($project, $block);
 
                 Lot::create([
 
@@ -678,4 +546,66 @@ class BlockController extends Controller
             ], 500);
         }
     }
+    /**
+     * Construye únicamente el prefijo legible del código.
+     * Ejemplo: "Madrid I" + "MZ A" => "MI-MZA".
+     */
+    private function buildLotCodePrefix(Project $project, Block $block): string
+    {
+        $projectName = strtoupper(Str::ascii(trim((string) $project->name)));
+        $words = preg_split('/\s+/', $projectName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        $initials = '';
+
+        foreach ($words as $word) {
+            $initials .= substr($word, 0, 1);
+        }
+
+        if ($initials === '') {
+            $initials = 'P' . $project->id;
+        }
+
+        $blockCode = strtoupper(Str::ascii(trim((string) $block->name)));
+        $blockCode = preg_replace('/[^A-Z0-9]+/', '', $blockCode) ?: '';
+
+        if ($blockCode === '') {
+            $blockCode = 'MZ' . $block->id;
+        }
+
+        return $initials . '-' . $blockCode;
+    }
+
+    /**
+     * Reserva el siguiente correlativo global bajo bloqueo de BD.
+     * Debe ejecutarse dentro de la transacción de generación masiva.
+     */
+    private function reserveLotCode(Project $project, Block $block): string
+    {
+        $sequence = DB::table('lot_code_sequences')
+            ->where('id', 1)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $sequence) {
+            throw new \RuntimeException('No existe el correlativo técnico de lotes. Ejecute la migración pendiente.');
+        }
+
+        $prefix = $this->buildLotCodePrefix($project, $block);
+        $nextNumber = (int) $sequence->last_number;
+
+        do {
+            $nextNumber++;
+            $code = $prefix . '-' . str_pad((string) $nextNumber, 6, '0', STR_PAD_LEFT);
+        } while (Lot::where('code', $code)->exists());
+
+        DB::table('lot_code_sequences')
+            ->where('id', 1)
+            ->update([
+                'last_number' => $nextNumber,
+                'updated_at' => now(),
+            ]);
+
+        return $code;
+    }
+
 }

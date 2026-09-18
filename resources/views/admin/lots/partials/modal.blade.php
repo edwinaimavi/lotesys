@@ -182,13 +182,16 @@
 
                                         <label for="code" class="small font-weight-bold text-secondary">
 
-                                            CÓDIGO
-                                            <span class="text-danger">*</span>
+                                            CÓDIGO AUTOMÁTICO
 
                                         </label>
 
                                         <input type="text" class="form-control form-control-sm" id="code"
-                                            name="code" placeholder="Ej: MZA-L01" readonly>
+                                            name="code" placeholder="Se asignará al guardar" readonly>
+
+                                        <small class="form-text text-muted">
+                                            El código es único, se reserva al guardar y luego no cambia.
+                                        </small>
 
                                         <span class="invalid-feedback" id="code-error"></span>
 

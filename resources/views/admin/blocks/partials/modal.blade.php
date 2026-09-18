@@ -124,43 +124,77 @@
 
                             <div class="card-body">
 
-                                <!-- FILA 1 -->
+                                @php
+                                    $blockModalCompanies = $projects
+                                        ->map(fn ($project) => $project->company)
+                                        ->filter()
+                                        ->unique('id')
+                                        ->sortBy(fn ($company) => $company->business_name ?? $company->trade_name ?? '');
+                                @endphp
+
+                                <!-- FILA 1: EMPRESA / PROYECTO -->
                                 <div class="form-row">
 
-                                    <div class="form-group col-md-8">
+                                    <div class="form-group col-md-6">
 
-                                        <label for="project_id" class="small font-weight-bold text-secondary">
-
-                                            PROYECTO
+                                        <label for="company_id_filter" class="small font-weight-bold text-secondary">
+                                            EMPRESA
                                             <span class="text-danger">*</span>
-
                                         </label>
 
-                                        <select id="project_id" name="project_id" class="form-control form-control-sm">
+                                        <select id="company_id_filter" class="form-control form-control-sm">
+                                            <option value="">Seleccione una empresa</option>
 
-                                            <option value="">
-                                                Seleccione un proyecto
-                                            </option>
+                                            @foreach ($blockModalCompanies as $company)
+                                                <option value="{{ $company->id }}">
+                                                    {{ $company->business_name ?? $company->trade_name ?? ('Empresa #' . $company->id) }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+
+                                        <small class="form-text text-muted">
+                                            Primero seleccione la empresa propietaria del proyecto.
+                                        </small>
+                                        <span class="invalid-feedback" id="company_id_filter-error"></span>
+
+                                    </div>
+
+                                    <div class="form-group col-md-6">
+
+                                        <label for="project_id" class="small font-weight-bold text-secondary">
+                                            PROYECTO
+                                            <span class="text-danger">*</span>
+                                        </label>
+
+                                        <select id="project_id" name="project_id" class="form-control form-control-sm" disabled>
+                                            <option value="">Seleccione primero una empresa</option>
 
                                             @foreach ($projects as $project)
-                                                <option value="{{ $project->id }}">
+                                                <option value="{{ $project->id }}"
+                                                    data-company-id="{{ $project->company_id }}"
+                                                    data-company-name="{{ $project->company->business_name ?? $project->company->trade_name ?? '' }}">
                                                     {{ $project->name }}
                                                 </option>
                                             @endforeach
-
                                         </select>
 
+                                        <small class="form-text text-muted" id="project_company_help">
+                                            Solo se mostrarán los proyectos de la empresa seleccionada.
+                                        </small>
                                         <span class="invalid-feedback" id="project_id-error"></span>
 
                                     </div>
 
-                                    <div class="form-group col-md-4">
+                                </div>
+
+                                <!-- FILA 2: MANZANA / ESTADO -->
+                                <div class="form-row">
+
+                                    <div class="form-group col-md-6">
 
                                         <label for="name" class="small font-weight-bold text-secondary">
-
                                             MANZANA
                                             <span class="text-danger">*</span>
-
                                         </label>
 
                                         <input type="text" class="form-control form-control-sm" id="name"
@@ -170,9 +204,24 @@
 
                                     </div>
 
+                                    <div class="form-group col-md-6">
+
+                                        <label for="status" class="small font-weight-bold text-secondary">
+                                            ESTADO
+                                        </label>
+
+                                        <select id="status" name="status" class="form-control form-control-sm">
+                                            <option value="1" selected>Activo</option>
+                                            <option value="0">Inactivo</option>
+                                        </select>
+
+                                        <span class="invalid-feedback" id="status-error"></span>
+
+                                    </div>
+
                                 </div>
 
-                                <!-- FILA 2 -->
+                                <!-- FILA 3 -->
                                 <div class="form-row">
 
                                     <div class="form-group col-md-12">
@@ -187,35 +236,6 @@
                                             placeholder="Descripción de la manzana"></textarea>
 
                                         <span class="invalid-feedback" id="description-error"></span>
-
-                                    </div>
-
-                                </div>
-
-                                <!-- FILA 3 -->
-                                <div class="form-row">
-
-                                    <div class="form-group col-md-6">
-
-                                        <label for="status" class="small font-weight-bold text-secondary">
-
-                                            ESTADO
-
-                                        </label>
-
-                                        <select id="status" name="status" class="form-control form-control-sm">
-
-                                            <option value="1" selected>
-                                                Activo
-                                            </option>
-
-                                            <option value="0">
-                                                Inactivo
-                                            </option>
-
-                                        </select>
-
-                                        <span class="invalid-feedback" id="status-error"></span>
 
                                     </div>
 

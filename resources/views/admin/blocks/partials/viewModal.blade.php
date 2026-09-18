@@ -65,6 +65,12 @@
 
                             </p>
 
+                            <p id="vb_company" class="text-primary font-weight-600 mb-1">
+
+                                Empresa
+
+                            </p>
+
                             <div class="mt-3">
 
                                 <span id="vb_status" class="badge badge-success py-2 px-3">
@@ -114,6 +120,20 @@
                                     </h6>
 
                                     <div class="d-flex flex-wrap">
+
+                                        <div class="mr-5 mb-2">
+
+                                            <small class="text-muted">
+                                                Empresa
+                                            </small>
+
+                                            <div id="vb_company_name" class="font-weight-600">
+
+                                                —
+
+                                            </div>
+
+                                        </div>
 
                                         <div class="mr-5 mb-2">
 

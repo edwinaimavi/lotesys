@@ -142,17 +142,20 @@
                                             </option>
 
                                             @foreach ($sales as $sale)
+                                                @php
+                                                    $customerName = $sale->customer?->person_type === 'juridica'
+                                                        ? ($sale->customer?->business_name ?? '—')
+                                                        : trim(($sale->customer?->first_name ?? '') . ' ' . ($sale->customer?->last_name ?? ''));
+                                                    $customerName = $customerName !== '' ? $customerName : '—';
+                                                    $companyName = $sale->lot?->project?->company?->business_name ?? '—';
+                                                    $projectName = $sale->lot?->project?->name ?? '—';
+                                                    $blockName = $sale->lot?->block?->name ?? '—';
+                                                    $lotNumber = $sale->lot?->number ?? '—';
+                                                    $lotCode = $sale->lot?->code ?? '—';
+                                                @endphp
+
                                                 <option value="{{ $sale->id }}">
-
-                                                    {{ $sale->sale_code }}
-                                                    -
-
-                                                    @if ($sale->customer?->person_type == 'juridica')
-                                                        {{ $sale->customer->business_name }}
-                                                    @else
-                                                        {{ trim(($sale->customer->first_name ?? '') . ' ' . ($sale->customer->last_name ?? '')) }}
-                                                    @endif
-
+                                                    {{ $sale->sale_code }} · {{ $companyName }} · {{ $projectName }} · {{ $blockName }} / Lote {{ $lotNumber }} · {{ $lotCode }} · {{ $customerName }}
                                                 </option>
                                             @endforeach
 
@@ -569,3 +572,23 @@
     </div>
 
 </div>
+
+<style>
+    #paymentModal .select2-container .select2-selection--single {
+        min-height: 34px;
+    }
+
+    #paymentModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 32px;
+        font-size: 12px;
+        color: #2f3f50;
+        padding-right: 28px;
+    }
+
+    #paymentModal .select2-results__option {
+        white-space: normal;
+        line-height: 1.3;
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+</style>
