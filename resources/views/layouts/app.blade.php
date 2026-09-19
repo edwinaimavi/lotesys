@@ -101,23 +101,20 @@
 @stop
 
 @section('footer')
-    <div class="footer-pro">
-        <div>
-            <strong>
-                <a href="{{ config('app.company_url', '#') }}">
-                    {{ config('app.company_name', 'CiCoSys') }}
-                </a>
-            </strong>
-
+    <div class="footer-pro footer-krea">
+        <div class="footer-krea-main">
+            <span class="footer-product-name">Sistema de Gestión Inmobiliaria</span>
             <span class="footer-separator">•</span>
-
-            <span>
-                Sistema de gestión inmobiliaria
-            </span>
+            <span class="footer-version">Versión {{ config('app.version', '1.0.0') }}</span>
         </div>
 
-        <div>
-            Versión {{ config('app.version', '1.0.0') }}
+        <div class="footer-krea-credit">
+            <span>by:</span>
+            <a href="https://cicosysperu.com/"
+               target="_blank"
+               rel="noopener noreferrer">
+                CiCo Ingenieros
+            </a>
         </div>
     </div>
 @stop
@@ -129,8 +126,7 @@
 
     {{-- DataTables Buttons --}}
     <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap4.min.css" rel="stylesheet">
-
-    <style>
+<style>
         :root {
             --cico-primary: #0f4c81;
             --cico-primary-2: #0f66d0;
@@ -1007,6 +1003,9 @@
             background: #f8fbff;
         }
     </style>
+
+    {{-- Tema corporativo Grupo Krea / CiCoSys (carga al final para unificar toda la interfaz) --}}
+    <link rel="stylesheet" href="{{ asset('css/cicosys-krea-modern.css') }}">
 @endpush
 
 @push('js')
@@ -1202,3 +1201,4 @@
         });
     </script>
 @endpush
+

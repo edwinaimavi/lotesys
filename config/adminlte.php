@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'title' => 'CiCoSys',
+    'title' => 'reaSYS',
     'title_prefix' => '',
     'title_postfix' => ' | Sistema Inmobiliario',
 
@@ -37,12 +37,12 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'logo' => '<b>CiCo</b>Sys',
+    'logo' => '<b>Krea</b>Sys',
     'logo_img' => 'vendor/adminlte/dist/img/logo.png',
     'logo_img_class' => 'brand-image elevation-0',
     'logo_img_xl' => null,
     'logo_img_xl_class' => 'brand-image-xs',
-    'logo_img_alt' => 'CiCoSys Logo',
+    'logo_img_alt' => 'KreaSys Logo',
 
     /*
     |--------------------------------------------------------------------------
@@ -54,7 +54,7 @@ return [
         'enabled' => true,
         'img' => [
             'path' => 'vendor/adminlte/dist/img/logoblanco.png',
-            'alt' => 'CiCoSys Auth Logo',
+            'alt' => 'KreaSys Auth Logo',
             'class' => '',
             'width' => 180,
             'height' => 70,
@@ -72,7 +72,7 @@ return [
         'mode' => 'fullscreen',
         'img' => [
             'path' => 'vendor/adminlte/dist/img/logoblanco.png',
-            'alt' => 'CiCoSys Preloader',
+            'alt' => 'KreaSys Preloader',
             'effect' => 'animation__pulse',
             'width' => 130,
             'height' => 70,

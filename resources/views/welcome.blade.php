@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>CiCoSys | Bienvenida</title>
+    <title>reaSys | Bienvenida</title>
 
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -492,9 +492,9 @@
     <div class="page">
         <div class="topbar">
             <a href="{{ url('/') }}" class="brand">
-                <div class="brand-mark">C</div>
+                <div class="brand-mark">K</div>
                 <div>
-                    <div style="font-size: 1rem;">CiCoSys</div>
+                    <div style="font-size: 1rem;">KreaSYS</div>
                     <div style="font-size: .82rem; color: rgba(229,238,252,.7); font-weight: 600;">Gestión inmobiliaria
                         y financiera</div>
                 </div>
@@ -623,7 +623,7 @@
         </div>
 
         <div class="footer-note">
-            CiCoSys • portada de bienvenida • luego podrás convertir esta pantalla en una landing con noticias reales
+            KreaSys • portada de bienvenida • luego podrás convertir esta pantalla en una landing con noticias reales
             conectadas al servidor.
         </div>
     </div>
