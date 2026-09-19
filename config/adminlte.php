@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'title' => 'reaSYS',
+    'title' => 'KreaSYS',
     'title_prefix' => '',
     'title_postfix' => ' | Sistema Inmobiliario',
 
