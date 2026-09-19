@@ -14,6 +14,11 @@
 */
 
 :root {
+    --krea-font-base: .8125rem;
+    --krea-control-height: 32px;
+    --krea-control-sm-height: 30px;
+    --krea-space-panel: .875rem;
+
     --krea-green: #87BC27;
     --krea-green-dark: #6F9E1D;
     --krea-green-deep: #587F17;
@@ -41,7 +46,7 @@
 
     --krea-radius-xs: 8px;
     --krea-radius-sm: 10px;
-    --krea-radius: 14px;
+    --krea-radius: 12px;
     --krea-radius-lg: 18px;
 
     --krea-shadow-sm: 0 3px 12px rgba(34, 40, 45, .045);
@@ -79,6 +84,7 @@ body {
 
 body {
     color: var(--krea-text) !important;
+    font-size: var(--krea-font-base);
     letter-spacing: -.012em;
     font-weight: 500;
 }
@@ -120,11 +126,11 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
 }
 
 .content {
-    padding: 0 14px 28px !important;
+    padding: 0 10px 20px !important;
 }
 
 .content-header {
-    padding: 18px 16px 9px !important;
+    padding: 10px 12px 5px !important;
 }
 
 .content-header-pro {
@@ -175,7 +181,7 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
    -------------------------------------------------------------------------- */
 
 .main-header {
-    min-height: 64px !important;
+    min-height: 52px !important;
     background: rgba(255, 255, 255, .965) !important;
     border-bottom: 1px solid var(--krea-border) !important;
     box-shadow: 0 5px 18px rgba(35, 40, 45, .035) !important;
@@ -213,7 +219,7 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
 
 /* Usuario superior */
 .user-menu-trigger {
-    padding: 6px 9px !important;
+    padding: 3px 7px !important;
     border-radius: 12px !important;
 }
 
@@ -313,7 +319,7 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
 }
 
 .sidebar {
-    padding: 13px 9px 20px !important;
+    padding: 8px 8px 14px !important;
 }
 
 .nav-sidebar > .nav-item {
@@ -322,11 +328,11 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
 
 .nav-sidebar .nav-link {
     position: relative;
-    min-height: 42px;
+    min-height: 34px;
     display: flex;
     align-items: center;
     border-radius: 9px !important;
-    padding: .67rem .72rem !important;
+    padding: .42rem .65rem !important;
     color: rgba(238,241,236,.77) !important;
     font-weight: 650 !important;
     letter-spacing: -.01em;
@@ -366,7 +372,7 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
 .nav-sidebar .nav-icon {
     width: 1.45rem !important;
     margin-right: .35rem !important;
-    font-size: .91rem !important;
+    font-size: .84rem !important;
     color: rgba(230,235,227,.68) !important;
 }
 
@@ -384,10 +390,10 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
 }
 
 .nav-treeview .nav-link {
-    min-height: 37px;
-    padding-top: .5rem !important;
-    padding-bottom: .5rem !important;
-    font-size: .84rem !important;
+    min-height: 34px;
+    padding-top: .42rem !important;
+    padding-bottom: .42rem !important;
+    font-size: .75rem !important;
     color: rgba(231,235,229,.66) !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -413,7 +419,7 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
     font-size: .64rem !important;
     font-weight: 800 !important;
     letter-spacing: .12em !important;
-    padding: 1.08rem .66rem .42rem !important;
+    padding: .72rem .66rem .3rem !important;
 }
 
 .sidebar-search-results .list-group-item {
@@ -430,7 +436,7 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
     border: 1px solid var(--krea-border) !important;
     border-radius: 11px !important;
     box-shadow: var(--krea-shadow-sm) !important;
-    padding: .62rem .82rem !important;
+    padding: .5rem .72rem !important;
 }
 
 .breadcrumb-item,
@@ -464,7 +470,7 @@ a:not(.btn):not(.nav-link):not(.page-link):not(.dropdown-item):hover {
     position: relative;
     background: linear-gradient(180deg, #FFFFFF 0%, #FAFBF9 100%) !important;
     border-bottom: 1px solid var(--krea-border) !important;
-    padding: .92rem 1rem !important;
+    padding: .6rem var(--krea-space-panel) !important;
 }
 
 .card-header::after {
@@ -610,7 +616,7 @@ label,
 .form-label {
     color: #505961 !important;
     font-weight: 700 !important;
-    font-size: .78rem !important;
+    font-size: .75rem !important;
     letter-spacing: .015em !important;
 }
 
@@ -701,7 +707,7 @@ table.dataTable,
     color: #303A42 !important;
     border-collapse: separate !important;
     border-spacing: 0 !important;
-    font-size: .86rem !important;
+    font-size: .78125rem !important;
 }
 
 table.dataTable thead th,
@@ -771,8 +777,8 @@ table.dataTable tbody tr:hover,
 
 div.dataTables_wrapper div.dt-buttons .btn {
     border-radius: 8px !important;
-    padding: 6px 13px !important;
-    font-size: .78rem !important;
+    padding: 4px 9px !important;
+    font-size: .75rem !important;
 }
 
 /* DataTables export: reduce saturación */
@@ -823,7 +829,7 @@ div.dataTables_wrapper div.dt-buttons .btn {
 
 .badge {
     border-radius: 999px !important;
-    padding: .42rem .62rem !important;
+    padding: .34rem .52rem !important;
     font-weight: 750 !important;
     letter-spacing: .01em !important;
 }
@@ -869,7 +875,7 @@ div.dataTables_wrapper div.dt-buttons .btn {
     background: linear-gradient(135deg, #24292D 0%, #30363B 100%) !important;
     color: #fff !important;
     border-bottom: 0 !important;
-    padding: 1rem 1.15rem !important;
+    padding: .65rem var(--krea-space-panel) !important;
 }
 
 .modal-header::after,
@@ -1014,8 +1020,8 @@ div.dataTables_wrapper div.dt-buttons .btn {
     color: #768087 !important;
     border-top: 1px solid var(--krea-border) !important;
     box-shadow: 0 -4px 16px rgba(34,40,45,.025) !important;
-    font-size: .78rem !important;
-    padding: .72rem 1rem !important;
+    font-size: .75rem !important;
+    padding: .6rem 1rem !important;
 }
 
 .footer-krea {
@@ -1255,4 +1261,249 @@ table.dataTable tbody td button.btn,
     flex-basis: 1.18rem !important;
     width: 1.18rem !important;
     min-width: 1.18rem !important;
+}
+
+/* Densidad nativa: conserva el scroll y las coordenadas de los componentes. */
+.content-header h1 { font-size: 1.4rem; }
+.content-header h2 { font-size: 1.25rem; }
+.content-header h3 { font-size: 1.125rem; }
+.card-title,
+.card-header h5,
+.modal-title { font-size: 1rem; }
+
+.card { margin-bottom: .75rem; }
+.card-body,
+.modal-body { padding: var(--krea-space-panel); }
+.card-footer,
+.modal-footer { padding: .55rem var(--krea-space-panel); }
+.img-avatar-navbar { width: 32px; height: 32px; }
+.user-top-name { font-size: .78rem; }
+.user-top-role { font-size: .7rem; }
+.nav-sidebar .nav-link { font-size: var(--krea-font-base); }
+
+/* Supera los estilos locales del Dashboard sin cambiar datos ni iconos. */
+.content-wrapper .small-box {
+    padding: 10px 12px 8px;
+    min-height: 100px;
+    margin-bottom: 8px;
+}
+.content-wrapper .small-box > .inner { padding: 5px; }
+.content-wrapper .small-box .inner h3 {
+    font-size: 1.5625rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.content-wrapper .small-box .inner p {
+    font-size: var(--krea-font-base);
+    margin-top: 4px;
+}
+.content-wrapper .small-box > .small-box-footer {
+    font-size: .8125rem;
+    margin-top: 4px;
+}
+
+.btn,
+.form-control,
+.custom-select,
+.input-group-text,
+.select2-container { font-size: var(--krea-font-base); }
+.btn {
+    padding: .25rem .55rem;
+    min-height: var(--krea-control-height);
+}
+.btn-sm,
+.btn-group-sm > .btn {
+    font-size: .8125rem;
+    padding: .22rem .5rem;
+    min-height: var(--krea-control-sm-height);
+}
+.form-control,
+.custom-select {
+    height: var(--krea-control-height);
+    padding: .25rem .55rem;
+}
+.custom-select { padding-right: 1.75rem; }
+.form-control.form-control-sm,
+.custom-select.custom-select-sm {
+    height: var(--krea-control-sm-height);
+    min-height: var(--krea-control-sm-height);
+    padding-top: .2rem;
+    padding-bottom: .2rem;
+    font-size: .8125rem;
+}
+textarea.form-control,
+select.form-control[multiple],
+select.form-control[size] { height: auto; }
+.form-group { margin-bottom: .65rem; }
+.input-group-text { padding: .3rem .65rem; }
+.select2-container--default .select2-selection--single {
+    height: var(--krea-control-height);
+    padding: 0 .5rem;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: calc(var(--krea-control-height) - 2px);
+    padding-left: 0;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(var(--krea-control-height) - 2px);
+}
+.select2-container--default .select2-selection--multiple {
+    min-height: var(--krea-control-height);
+}
+
+table.dataTable thead th,
+.table thead th,
+.tableStiles thead th,
+.role-table thead th {
+    padding-top: .42rem;
+    padding-bottom: .42rem;
+}
+table.dataTable tbody td,
+.table tbody td,
+.tableStiles tbody td,
+.role-table tbody td {
+    padding-top: .375rem;
+    padding-bottom: .375rem;
+}
+div.dataTables_wrapper div.dt-buttons { gap: 6px; margin-top: 8px; }
+div.dataTables_wrapper div.dataTables_filter input { padding: 4px 9px; }
+div.dataTables_wrapper div.dataTables_length select {
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+.page-item .page-link { font-size: .78125rem; padding: .32rem .55rem; }
+
+/* AdminLTE: ancho y offsets cambian juntos solo en escritorio.
+   El estado mini cerrado conserva sus dimensiones originales. */
+@media (min-width: 992px) {
+    body:not(.layout-top-nav) { --krea-sidebar-width: 220px; }
+
+    body:not(.layout-top-nav):not(.sidebar-collapse) .main-sidebar,
+    body.sidebar-mini.sidebar-collapse:not(.layout-top-nav) .main-sidebar:hover,
+    body.sidebar-mini.sidebar-collapse:not(.layout-top-nav) .main-sidebar.sidebar-focused {
+        width: var(--krea-sidebar-width) !important;
+    }
+    body:not(.layout-top-nav):not(.sidebar-collapse) .main-header,
+    body:not(.layout-top-nav):not(.sidebar-collapse) .content-wrapper,
+    body:not(.layout-top-nav):not(.sidebar-collapse) .main-footer {
+        margin-left: var(--krea-sidebar-width) !important;
+    }
+    body:not(.layout-top-nav):not(.sidebar-collapse) .main-sidebar .brand-link,
+    body.sidebar-mini.sidebar-collapse:not(.layout-top-nav) .main-sidebar:hover .brand-link,
+    body.sidebar-mini.sidebar-collapse:not(.layout-top-nav) .main-sidebar.sidebar-focused .brand-link {
+        width: var(--krea-sidebar-width) !important;
+    }
+    body:not(.layout-top-nav):not(.sidebar-collapse) .nav-sidebar .nav-link,
+    body.sidebar-mini.sidebar-collapse .main-sidebar:hover .nav-sidebar .nav-link,
+    body.sidebar-mini.sidebar-collapse .main-sidebar.sidebar-focused .nav-sidebar .nav-link {
+        width: 100%;
+    }
+    .main-header.navbar { padding-top: 4px; padding-bottom: 4px; }
+    .main-header .navbar-nav .nav-link {
+        height: auto;
+        min-height: 36px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+    }
+
+    /* Reduce gutters Bootstrap sin cambiar las cuatro columnas del Dashboard.
+       !important solo vence las utilidades mb-3 de la vista. */
+    .content-wrapper .row:has(> [class*="col-"] > .small-box) {
+        margin-left: -6px;
+        margin-right: -6px;
+    }
+    .content-wrapper .row > [class*="col-"]:has(> .small-box) {
+        padding-left: 6px;
+        padding-right: 6px;
+        margin-bottom: 8px !important;
+    }
+}
+
+/* Ultimo ajuste de densidad: solo escritorio con puntero preciso.
+   Conserva sin cambios las dimensiones tactiles y el gap icono/texto. */
+@media (min-width: 992px) and (pointer: fine) {
+    :root {
+        --krea-font-base: .78125rem;
+        --krea-control-height: 31px;
+        --krea-space-panel: .83125rem;
+    }
+    .main-header { min-height: 50px !important; }
+    .main-header.navbar { padding-top: 3px; padding-bottom: 3px; }
+    .img-avatar-navbar { width: 31px; height: 31px; }
+    .user-top-name { font-size: .75rem; }
+    .nav-sidebar .nav-link {
+        padding-top: .4rem !important;
+        padding-bottom: .4rem !important;
+    }
+    .nav-header { padding-top: .68rem !important; }
+    .content { padding-bottom: 19px !important; }
+    .content-header { padding-top: 9.5px !important; }
+    .card { margin-bottom: .7125rem; }
+    .card-header { padding-top: .57rem !important; padding-bottom: .57rem !important; }
+    .card-title,
+    .card-header h5 { font-size: .9625rem; }
+    .content-wrapper .small-box { padding: 9.5px 12px 7.5px; }
+    .content-wrapper .small-box .inner h3 { font-size: 1.5rem; }
+    .content-wrapper .small-box > .inner { padding: 4.75px; }
+    .form-group { margin-bottom: .62rem; }
+    label,
+    .form-label { font-size: .71875rem !important; }
+    .btn-sm,
+    .btn-group-sm > .btn,
+    .form-control.form-control-sm,
+    .custom-select.custom-select-sm { font-size: .78125rem; }
+
+    table.dataTable,
+    .table,
+    .tableStiles,
+    .role-table { font-size: .75rem !important; }
+    table.dataTable thead th,
+    .table thead th,
+    .tableStiles thead th,
+    .role-table thead th { padding-top: .4rem; padding-bottom: .4rem; }
+    table.dataTable tbody td,
+    .table tbody td,
+    .tableStiles tbody td,
+    .role-table tbody td { padding: .35rem .7rem; }
+    /* Conserva el espacio reservado por DataTables para ordenar columnas. */
+    .table tbody td .btn,
+    .tableStiles tbody td .btn,
+    .role-table tbody td .btn {
+        font-size: .75rem;
+        min-height: 29px;
+        padding: .2rem .475rem;
+    }
+    div.dataTables_wrapper div.dt-buttons { gap: 5.7px; margin-top: 7.5px; }
+    div.dataTables_wrapper div.dt-buttons .btn { padding: 3.5px 8.5px !important; }
+    div.dataTables_wrapper div.dataTables_filter input { padding: 3.5px 8.5px; }
+    div.dataTables_wrapper div.dataTables_length select {
+        padding-top: 2.5px;
+        padding-bottom: 2.5px;
+    }
+    .page-item .page-link { font-size: .75rem; padding: .3rem .52rem; }
+}
+
+/* Mantiene blancos tactiles comodos en movil y dispositivos de puntero grueso. */
+@media (max-width: 991.98px), (pointer: coarse) {
+    :root {
+        --krea-font-base: .875rem;
+        --krea-space-panel: 1rem;
+        --krea-control-height: 44px;
+        --krea-control-sm-height: 44px;
+    }
+    .main-header .navbar-nav .nav-link,
+    .nav-sidebar .nav-link,
+    .main-header .nav-link,
+    .page-item .page-link,
+    .content-wrapper .small-box > .small-box-footer { min-height: 44px; }
+    .page-item .page-link,
+    .content-wrapper .small-box > .small-box-footer {
+        padding-top: .75rem;
+        padding-bottom: .75rem;
+    }
+    .form-control,
+    .form-control.form-control-sm,
+    .custom-select,
+    .custom-select.custom-select-sm,
+    .select2-container { font-size: 1rem; }
 }
