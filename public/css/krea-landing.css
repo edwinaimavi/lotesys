@@ -290,3 +290,390 @@ body{overflow-x:clip}.svg-sprite{position:absolute;width:0;height:0;overflow:hid
 @media(prefers-reduced-motion:reduce){
     .footer-premium::after{transform:scale(1.045)}
 }
+
+/* Premium commercial topbar — Grupo Krea */
+.topline-premium{
+    position:relative;
+    overflow:hidden;
+    padding:0;
+    border-bottom:1px solid rgba(196,226,139,.16);
+    background:linear-gradient(90deg,#163c2c 0%,#214f3b 44%,#183f2e 100%);
+    color:#eef5e8;
+}
+.topline-premium::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:
+        radial-gradient(circle at 17% -120%,rgba(196,226,139,.18),transparent 34%),
+        linear-gradient(105deg,transparent 0 42%,rgba(255,255,255,.045) 49%,transparent 56% 100%);
+    transform:translateX(-32%);
+    animation:kreaToplineGlow 11s ease-in-out infinite alternate;
+}
+.topline-premium::after{
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:1px;
+    background:linear-gradient(90deg,transparent 3%,rgba(135,188,39,.8) 26%,rgba(196,226,139,.7) 50%,rgba(135,188,39,.62) 74%,transparent 97%);
+    opacity:.5;
+}
+.topline-shell{
+    position:relative;
+    z-index:1;
+    display:grid!important;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:center;
+    gap:28px;
+    min-height:38px;
+}
+.topline-status{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    white-space:nowrap;
+}
+.topline-live-dot{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#b9e46f;
+    box-shadow:0 0 0 0 rgba(185,228,111,.44);
+    animation:kreaToplinePulse 2.4s ease-out infinite;
+}
+.topline-label{
+    color:#c7d8bc;
+    font-size:7px;
+    font-weight:850;
+    letter-spacing:1.65px;
+}
+.topline-message{
+    margin:0;
+    color:rgba(232,241,227,.72);
+    font-size:9px;
+    letter-spacing:.04em;
+    text-align:center;
+}
+.topline-message strong{
+    color:#f4f8ef;
+    font-weight:700;
+}
+.topline-contact{
+    position:relative;
+    display:grid!important;
+    grid-template-columns:auto auto;
+    grid-template-areas:"meta arrow" "number arrow";
+    align-items:center;
+    column-gap:11px;
+    min-width:174px;
+    padding:5px 11px 5px 14px;
+    border-left:1px solid rgba(255,255,255,.11);
+    color:#f3f8ee!important;
+    transition:background-color .25s ease,color .25s ease,padding .25s ease;
+}
+.topline-contact::before{
+    content:"";
+    position:absolute;
+    inset:4px 0;
+    border-radius:7px;
+    background:rgba(196,226,139,0);
+    transition:background-color .25s ease;
+    z-index:-1;
+}
+.topline-contact-meta{
+    grid-area:meta;
+    color:#9fb794;
+    font-size:6px;
+    font-weight:900;
+    letter-spacing:1.25px;
+    line-height:1.05;
+}
+.topline-contact strong{
+    grid-area:number;
+    margin-top:2px;
+    color:#f6faef;
+    font-size:10px;
+    font-weight:760;
+    letter-spacing:.02em;
+    line-height:1.15;
+}
+.topline-contact-arrow{
+    grid-area:arrow;
+    display:grid;
+    width:24px;
+    height:24px;
+    place-items:center;
+    border:1px solid rgba(196,226,139,.22);
+    border-radius:50%;
+    color:#cce6a2;
+    font-size:10px;
+    transition:transform .25s ease,background-color .25s ease,border-color .25s ease;
+}
+@media(hover:hover){
+    .topline-contact:hover::before{background:rgba(196,226,139,.07)}
+    .topline-contact:hover .topline-contact-arrow{
+        transform:translate(1px,-1px) rotate(5deg);
+        border-color:rgba(196,226,139,.5);
+        background:rgba(196,226,139,.08);
+    }
+}
+@keyframes kreaToplinePulse{
+    0%{box-shadow:0 0 0 0 rgba(185,228,111,.4)}
+    70%{box-shadow:0 0 0 7px rgba(185,228,111,0)}
+    100%{box-shadow:0 0 0 0 rgba(185,228,111,0)}
+}
+@keyframes kreaToplineGlow{
+    from{transform:translateX(-28%)}
+    to{transform:translateX(28%)}
+}
+@media(max-width:900px){
+    .topline-shell{grid-template-columns:auto 1fr;gap:18px}
+    .topline-message{display:none}
+    .topline-contact{justify-self:end}
+}
+@media(max-width:760px){
+    .topline-premium .container{width:calc(100% - 24px)}
+    .topline-shell{display:flex!important;justify-content:space-between;gap:10px;min-height:36px}
+    .topline-premium .container>span{display:inline}
+    .topline-label{font-size:6px;letter-spacing:1.25px}
+    .topline-contact{min-width:0;padding:4px 0 4px 12px;border-left-color:rgba(255,255,255,.09)}
+    .topline-contact-meta{display:none}
+    .topline-contact strong{margin-top:0;font-size:9px}
+    .topline-contact-arrow{width:22px;height:22px}
+}
+@media(max-width:420px){
+    .topline-label{max-width:88px;white-space:normal;line-height:1.15}
+    .topline-contact strong{font-size:8.5px}
+}
+@media(prefers-reduced-motion:reduce){
+    .topline-premium::before,.topline-live-dot{animation:none!important}
+    .topline-contact,.topline-contact::before,.topline-contact-arrow{transition:none!important}
+}
+
+/* Premium navigation motion — Grupo Krea */
+.header{
+    position:sticky;
+    top:0;
+    z-index:20;
+    background:rgba(255,255,255,.965);
+    border-bottom:1px solid rgba(36,75,56,.08);
+    box-shadow:0 10px 34px rgba(22,55,39,.045);
+    backdrop-filter:saturate(1.08) blur(14px);
+    -webkit-backdrop-filter:saturate(1.08) blur(14px);
+}
+.header .nav-shell{
+    position:relative;
+}
+.header .brand{
+    position:relative;
+    z-index:1;
+    isolation:isolate;
+}
+.header .brand::before{
+    content:"";
+    position:absolute;
+    z-index:-1;
+    left:-9px;
+    top:50%;
+    width:62px;
+    height:62px;
+    border-radius:50%;
+    background:radial-gradient(circle,rgba(135,188,39,.14) 0%,rgba(135,188,39,.055) 42%,transparent 70%);
+    opacity:0;
+    transform:translateY(-50%) scale(.72);
+    transition:opacity .35s ease,transform .45s cubic-bezier(.2,.8,.2,1);
+    pointer-events:none;
+}
+.header .brand img{
+    transform-origin:50% 76%;
+    will-change:transform,filter;
+    animation:kreaLogoArrival .92s cubic-bezier(.2,.9,.26,1.28) .08s backwards;
+    transition:transform .42s cubic-bezier(.2,.9,.25,1.25),filter .35s ease;
+}
+.header .brand>span{
+    animation:kreaBrandCopyArrival .68s cubic-bezier(.2,.8,.2,1) .16s backwards;
+}
+.header .brand strong{
+    transition:color .28s ease,letter-spacing .32s ease;
+}
+@keyframes kreaLogoArrival{
+    0%{opacity:0;transform:translateY(-12px) scale(.84) rotate(-8deg)}
+    55%{opacity:1;transform:translateY(4px) scale(1.055) rotate(3deg)}
+    76%{transform:translateY(-2px) scale(.985) rotate(-1.2deg)}
+    100%{opacity:1;transform:none}
+}
+@keyframes kreaBrandCopyArrival{
+    from{opacity:0;transform:translateX(-8px)}
+    to{opacity:1;transform:none}
+}
+@media(hover:hover){
+    .header .brand:hover::before{
+        opacity:1;
+        transform:translateY(-50%) scale(1);
+    }
+    .header .brand:hover img{
+        transform:translateY(-4px) rotate(-4deg) scale(1.055);
+        filter:drop-shadow(0 8px 13px rgba(71,112,42,.2));
+    }
+    .header .brand:hover strong{
+        color:#5f842f;
+        letter-spacing:.25px;
+    }
+}
+.header .nav-shell nav{
+    gap:25px;
+}
+.header .nav-shell nav a{
+    position:relative;
+    padding:10px 1px 9px;
+    color:#24382e;
+    transition:color .24s ease,transform .24s ease;
+}
+.header .nav-shell nav a::before{
+    content:"";
+    position:absolute;
+    left:50%;
+    bottom:2px;
+    width:4px;
+    height:4px;
+    border-radius:50%;
+    background:#87bc27;
+    opacity:0;
+    transform:translate(-50%,5px) scale(.45);
+    transition:opacity .25s ease,transform .28s cubic-bezier(.2,.9,.25,1.3);
+}
+.header .nav-shell nav a::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    bottom:0;
+    width:0;
+    height:1px;
+    background:linear-gradient(90deg,transparent,#87bc27 20%,#87bc27 80%,transparent);
+    transform:translateX(-50%);
+    transition:width .3s cubic-bezier(.2,.75,.25,1);
+}
+@media(hover:hover){
+    .header .nav-shell nav a:hover{
+        color:#51782c;
+        transform:translateY(-1px);
+    }
+    .header .nav-shell nav a:hover::before{
+        opacity:1;
+        transform:translate(-50%,0) scale(1);
+    }
+    .header .nav-shell nav a:hover::after{
+        width:100%;
+    }
+}
+.header .nav-cta{
+    position:relative;
+    overflow:hidden;
+    isolation:isolate;
+    min-width:160px;
+    border:1px solid rgba(36,75,56,.08);
+    box-shadow:0 8px 20px rgba(30,65,45,.08);
+    transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s ease,background-color .28s ease;
+}
+.header .nav-cta::before{
+    content:"";
+    position:absolute;
+    z-index:-1;
+    top:-80%;
+    left:-35%;
+    width:34%;
+    height:260%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);
+    transform:rotate(16deg) translateX(-220%);
+    transition:transform .7s cubic-bezier(.2,.75,.25,1);
+}
+.header .nav-cta::after{
+    content:"";
+    position:absolute;
+    right:10px;
+    bottom:8px;
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:#c4e28b;
+    box-shadow:0 0 0 0 rgba(196,226,139,.35);
+    opacity:.72;
+    animation:kreaNavCtaPulse 2.8s ease-out infinite;
+}
+@keyframes kreaNavCtaPulse{
+    0%{box-shadow:0 0 0 0 rgba(196,226,139,.32)}
+    72%{box-shadow:0 0 0 7px rgba(196,226,139,0)}
+    100%{box-shadow:0 0 0 0 rgba(196,226,139,0)}
+}
+@media(hover:hover){
+    .header .nav-cta:hover{
+        transform:translateY(-2px);
+        box-shadow:0 13px 26px rgba(30,65,45,.16);
+    }
+    .header .nav-cta:hover::before{
+        transform:rotate(16deg) translateX(510%);
+    }
+}
+@media(max-width:1100px){
+    .header .nav-shell nav{gap:16px}
+}
+@media(max-width:760px){
+    .header{
+        backdrop-filter:blur(12px);
+        -webkit-backdrop-filter:blur(12px);
+    }
+    .header .brand::before{
+        left:-7px;
+        width:52px;
+        height:52px;
+    }
+    .header .nav-shell nav{
+        gap:0;
+        border-top:1px solid rgba(36,75,56,.07);
+    }
+    .header .nav-shell nav a{
+        padding:12px 15px 12px 19px;
+        border-bottom:1px solid rgba(36,75,56,.055);
+        transform:none!important;
+    }
+    .header .nav-shell nav a::before{
+        left:8px;
+        bottom:auto;
+        top:50%;
+        width:4px;
+        height:18px;
+        border-radius:4px;
+        opacity:0;
+        transform:translateY(-50%) scaleY(.3);
+    }
+    .header .nav-shell nav a::after{display:none}
+    .header .nav-shell nav a:hover::before{
+        opacity:1;
+        transform:translateY(-50%) scaleY(1);
+    }
+}
+@media(prefers-reduced-motion:reduce){
+    .header .brand img,
+    .header .brand>span,
+    .header .nav-cta::after{
+        animation:none!important;
+    }
+    .header .brand::before,
+    .header .brand img,
+    .header .brand strong,
+    .header .nav-shell nav a,
+    .header .nav-shell nav a::before,
+    .header .nav-shell nav a::after,
+    .header .nav-cta,
+    .header .nav-cta::before{
+        transition:none!important;
+    }
+    .header .brand:hover img,
+    .header .nav-shell nav a:hover,
+    .header .nav-cta:hover{
+        transform:none!important;
+    }
+}

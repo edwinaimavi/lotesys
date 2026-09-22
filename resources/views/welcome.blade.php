@@ -44,7 +44,20 @@
     <symbol id="icon-tiktok" viewBox="0 0 24 24"><path d="M14.2 3v11.4a4.5 4.5 0 1 1-3.7-4.4v3.2a1.5 1.5 0 1 0 .7 1.2V3h3Zm0 0c.5 2.8 2.1 4.4 4.8 4.8v3.1a8.5 8.5 0 0 1-4.8-1.6"/></symbol>
 </svg>
 <a class="skip-link" href="#contenido">Saltar al contenido</a>
-<div class="topline"><div class="container"><span>Construimos oportunidades. Creamos futuro.</span><a href="{{ $phoneHref ?: '#contacto' }}">{{ $phoneDisplay ?: 'Conversemos sobre tu próximo lote' }} ↗</a></div></div>
+<div class="topline topline-premium" aria-label="Atención comercial">
+    <div class="container topline-shell">
+        <div class="topline-status">
+            <span class="topline-live-dot" aria-hidden="true"></span>
+            <span class="topline-label">ATENCIÓN COMERCIAL</span>
+        </div>
+        <p class="topline-message">Construimos oportunidades. <strong>Creamos futuro.</strong></p>
+        <a class="topline-contact" href="{{ $phoneHref ?: '#contacto' }}" aria-label="Contactar al {{ $phoneDisplay ?: 'equipo comercial' }}">
+            <span class="topline-contact-meta">WHATSAPP PRINCIPAL</span>
+            <strong>{{ $phoneDisplay ?: 'Conversemos sobre tu próximo lote' }}</strong>
+            <span class="topline-contact-arrow" aria-hidden="true">↗</span>
+        </a>
+    </div>
+</div>
 <header class="header"><div class="container nav-shell">
     <a class="brand" href="#inicio" aria-label="Grupo Krea, inicio"><img src="{{ asset(config('landing.logo')) }}" width="46" height="46" alt=""><span>GRUPO <strong>KREA</strong><small>DESARROLLAMOS TU FUTURO</small></span></a>
     <button class="menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="main-nav">☰</button>
