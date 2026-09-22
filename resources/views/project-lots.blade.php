@@ -1,8 +1,15 @@
 @php
     $profile = $project->webProfile;
-    $phone = config('landing.phone');
     $email = config('landing.email');
     $whatsapp = $primaryWhatsapp ?? preg_replace('/\D/', '', config('landing.whatsapp', ''));
+    $phone = $whatsapp;
+    $phoneDisplay = $phone;
+    if ($phone && preg_match('/^51(\d{3})(\d{3})(\d{3})$/', $phone, $phoneParts)) {
+        $phoneDisplay = '+51 '.$phoneParts[1].' '.$phoneParts[2].' '.$phoneParts[3];
+    } elseif ($phone && preg_match('/^(\d{3})(\d{3})(\d{3})$/', $phone, $phoneParts)) {
+        $phoneDisplay = $phoneParts[1].' '.$phoneParts[2].' '.$phoneParts[3];
+    }
+    $phoneHref = $phone ? 'tel:'.(str_starts_with($phone, '51') ? '+'.$phone : $phone) : null;
     $contactUrl = $whatsapp
         ? 'https://wa.me/'.$whatsapp.'?text='.rawurlencode('Hola, quiero información sobre el proyecto '.$project->name.'.')
         : ($email ? 'mailto:'.$email : url('/#contacto'));
@@ -25,7 +32,7 @@
     <link rel="stylesheet" href="{{ asset('css/krea-landing.css') }}">
 </head>
 <body class="inventory-page">
-<div class="topline"><div class="container"><span>Construimos oportunidades. Creamos futuro.</span><a href="{{ $phone ? 'tel:'.preg_replace('/[^+0-9]/', '', $phone) : url('/#contacto') }}">{{ $phone ?: 'Conversemos sobre tu próximo lote' }} ↗</a></div></div>
+<div class="topline"><div class="container"><span>Construimos oportunidades. Creamos futuro.</span><a href="{{ $phoneHref ?: url('/#contacto') }}">{{ $phoneDisplay ?: 'Conversemos sobre tu próximo lote' }} ↗</a></div></div>
 <header class="inventory-header">
     <div class="container inventory-nav">
         <a class="brand" href="{{ url('/') }}" aria-label="Grupo Krea, inicio"><img src="{{ asset(config('landing.logo')) }}" width="46" height="46" alt=""><span>GRUPO <strong>KREA</strong><small>DESARROLLAMOS TU FUTURO</small></span></a>

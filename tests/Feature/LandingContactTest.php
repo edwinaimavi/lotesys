@@ -151,20 +151,36 @@ class LandingContactTest extends TestCase
     public function test_landing_uses_database_cta_even_when_hidden_in_footer(): void
     {
         $this->item(['value'=>'+51 999 123 456','use_for_cta'=>true,'show_in_footer'=>false]);
-        $this->get('/')->assertOk()->assertSee('https://wa.me/51999123456')->assertDontSee('Síguenos')->assertDontSee('+51 999 123 456');
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('https://wa.me/51999123456')
+            ->assertSee('href="tel:+51999123456"', false)
+            ->assertSee('+51 999 123 456')
+            ->assertDontSee('Síguenos')
+            ->assertDontSee(config('landing.phone'));
     }
 
     public function test_empty_and_inactive_table_use_config_fallback(): void
     {
-        $this->get('/')->assertOk()->assertSee(config('landing.phone'))->assertSee(config('landing.email'))->assertSee('https://wa.me/'.config('landing.whatsapp'));
+        $fallbackWhatsapp = preg_replace('/\D/', '', (string) config('landing.whatsapp'));
+        $fallbackTel = str_starts_with($fallbackWhatsapp, '51') ? '+'.$fallbackWhatsapp : $fallbackWhatsapp;
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('href="tel:'.$fallbackTel.'"', false)
+            ->assertSee(config('landing.email'))
+            ->assertSee('https://wa.me/'.$fallbackWhatsapp);
+
         $this->item(['is_active'=>false,'use_for_cta'=>true]);
-        $this->get('/')->assertOk()->assertSee(config('landing.phone'));
+        $this->get('/')->assertOk()->assertSee('href="tel:'.$fallbackTel.'"', false);
     }
 
     public function test_missing_table_uses_config_fallback(): void
     {
         Schema::drop('landing_contact_items');
-        $this->get('/')->assertOk()->assertSee(config('landing.phone'));
+        $fallbackWhatsapp = preg_replace('/\D/', '', (string) config('landing.whatsapp'));
+        $fallbackTel = str_starts_with($fallbackWhatsapp, '51') ? '+'.$fallbackWhatsapp : $fallbackWhatsapp;
+        $this->get('/')->assertOk()->assertSee('href="tel:'.$fallbackTel.'"', false);
     }
 
     public function test_active_contact_without_cta_keeps_config_destination(): void
