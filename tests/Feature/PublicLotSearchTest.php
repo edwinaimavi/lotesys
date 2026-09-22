@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
-function createPublicSearchProject(int $id, string $name, string $district): void
+function createPublicSearchProject(int $id, string $name, ?string $district, string $province = 'SAN MARTIN', string $department = 'SAN MARTIN'): void
 {
     DB::table('projects')->insert([
         'id' => $id,
@@ -13,8 +13,8 @@ function createPublicSearchProject(int $id, string $name, string $district): voi
         'name' => $name,
         'code' => 'PUBLIC-'.$id,
         'district' => $district,
-        'province' => 'SAN MARTIN',
-        'department' => 'SAN MARTIN',
+        'province' => $province,
+        'department' => $department,
         'status' => 1,
         'created_at' => now(),
         'updated_at' => now(),
@@ -96,6 +96,27 @@ test('filtra por ubicación real del proyecto', function () {
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.location', 'MORALES');
+});
+
+test('la landing lista proyectos activos aunque todavía no tengan lotes y usa provincia como ubicación alternativa', function () {
+    createPublicSearchProject(8400, 'Madrid Público', null, 'LAMAS');
+
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('<option value="LAMAS">LAMAS</option>', false)
+        ->assertSee('value="8400" data-location="LAMAS"', false)
+        ->assertSee('Madrid Público');
+});
+
+test('filtra por provincia cuando el distrito del proyecto está vacío', function () {
+    createPublicSearchProject(8400, 'Palmeras Públicas', null, 'LAMAS');
+    createPublicSearchLot(8600, 8400, '01', 45000);
+
+    $this->getJson(route('public.lots.search', ['location' => 'LAMAS']))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.project', 'Palmeras Públicas')
+        ->assertJsonPath('data.0.location', 'LAMAS');
 });
 
 test('filtra presupuesto mediante límites numéricos y conserva decimales', function () {

@@ -110,17 +110,14 @@ class LandingController extends Controller
             ->get();
 
         $lotSearchProjects = Project::query()
-            ->select(['id', 'name', 'district'])
+            ->select(['id', 'name', 'district', 'province', 'department'])
             ->where('status', 1)
-            ->whereHas('lots', function ($query) {
-                $query->whereHas('block', fn ($blockQuery) => $blockQuery->where('status', 1));
-            })
             ->orderBy('name')
             ->get()
             ->map(fn (Project $project) => [
                 'id' => $project->id,
                 'name' => $project->name,
-                'location' => $project->district,
+                'location' => $this->projectSearchLocation($project),
             ]);
 
         $lotSearchLocations = $lotSearchProjects
@@ -492,7 +489,31 @@ class LandingController extends Controller
     private function applyAvailabilityFilters(Builder $query, array $filters): Builder
     {
         if (! empty($filters['location'])) {
-            $query->whereHas('project', fn ($projectQuery) => $projectQuery->where('district', $filters['location']));
+            $location = $filters['location'];
+
+            $query->whereHas('project', function ($projectQuery) use ($location) {
+                $projectQuery->where(function ($locationQuery) use ($location) {
+                    $locationQuery
+                        ->where('district', $location)
+                        ->orWhere(function ($provinceQuery) use ($location) {
+                            $provinceQuery
+                                ->where(fn ($districtQuery) => $districtQuery
+                                    ->whereNull('district')
+                                    ->orWhere('district', ''))
+                                ->where('province', $location);
+                        })
+                        ->orWhere(function ($departmentQuery) use ($location) {
+                            $departmentQuery
+                                ->where(fn ($districtQuery) => $districtQuery
+                                    ->whereNull('district')
+                                    ->orWhere('district', ''))
+                                ->where(fn ($provinceQuery) => $provinceQuery
+                                    ->whereNull('province')
+                                    ->orWhere('province', ''))
+                                ->where('department', $location);
+                        });
+                });
+            });
         }
 
         if (! empty($filters['project_id'])) {
@@ -500,6 +521,17 @@ class LandingController extends Controller
         }
 
         return $query;
+    }
+
+    private function projectSearchLocation(Project $project): ?string
+    {
+        foreach ([$project->district, $project->province, $project->department] as $location) {
+            if (is_string($location) && trim($location) !== '') {
+                return trim($location);
+            }
+        }
+
+        return null;
     }
 
     private function commercialPriceRanges(Builder $query): array
