@@ -47,3 +47,20 @@ test('users can logout', function () {
 
     $this->assertGuest();
 });
+
+test('guests cannot access the home dashboard', function () {
+    $response = $this->get('/home');
+
+    $response->assertRedirect('/login');
+    $this->assertGuest();
+});
+
+test('authenticated users can access the home dashboard', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get('/home');
+
+    $response->assertOk();
+    $this->assertAuthenticatedAs($user);
+});
+
