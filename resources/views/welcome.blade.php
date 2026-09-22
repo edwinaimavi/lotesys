@@ -241,16 +241,74 @@
 <section class="container journal" id="blog"><div class="section-heading"><div><span class="eyebrow">IDEAS PARA DECIDIR MEJOR</span><h2>Tu próxima inversión empieza aquí</h2></div><span class="journal-label">BLOG / GUÍA DE COMPRA</span></div><div class="guide-grid"><details><summary><span>01 / ELIGE CON INFORMACIÓN</span><h3>¿Qué revisar al elegir un terreno? ↗</h3></summary><p>Visita la ubicación, conoce los accesos y solicita información sobre servicios, documentación y condiciones de entrega del proyecto.</p></details><details><summary><span>02 / PLANIFICA TU FUTURO</span><h3>Prepara tu presupuesto de compra ↗</h3></summary><p>Considera la inicial, las cuotas y los gastos asociados. Pide una propuesta detallada para evaluar una alternativa acorde a tus posibilidades.</p></details><details><summary><span>03 / DA EL SIGUIENTE PASO</span><h3>Aprovecha tu visita al proyecto ↗</h3></summary><p>Prepara tus preguntas, recorre el entorno y solicita el plano del lote. Compara la información de tu visita con la propuesta comercial.</p></details></div></section>
 <section class="container contact" id="contacto" data-reveal="up"><div><span class="eyebrow">CONVERSEMOS SOBRE TU FUTURO</span><h2>¿No encuentras tu respuesta?</h2><p>Hablemos por WhatsApp. Estamos para acompañarte.</p></div><a class="button icon-button" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer"><svg aria-hidden="true"><use href="#icon-whatsapp"></use></svg>Hablemos por WhatsApp ↗</a></section>
 </main>
-<footer class="footer">
+<footer class="footer footer-premium">
+    <div class="footer-motion-strip" aria-hidden="true">
+        <div class="footer-motion-track">
+            <span>VIVIR MEJOR</span><i>✦</i><span>INVERTIR CON VISIÓN</span><i>✦</i><span>CRECER CON FUTURO</span><i>✦</i><span>UN LUGAR PARA TI</span><i>✦</i>
+            <span>VIVIR MEJOR</span><i>✦</i><span>INVERTIR CON VISIÓN</span><i>✦</i><span>CRECER CON FUTURO</span><i>✦</i><span>UN LUGAR PARA TI</span><i>✦</i>
+        </div>
+    </div>
+
+    <div class="container footer-callout" data-reveal="up">
+        <div class="footer-callout-copy">
+            <span class="footer-kicker">HABLEMOS DE TU PRÓXIMO PASO</span>
+            <h2>Un buen proyecto empieza con una conversación clara.</h2>
+            <p>Consulta disponibilidad, precios y detalles comerciales con nuestro equipo.</p>
+        </div>
+        <a class="footer-cta" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">
+            <span><small><b class="footer-live-dot" aria-hidden="true"></b>ATENCIÓN COMERCIAL</small>Hablar con un asesor</span>
+            <i aria-hidden="true">↗</i>
+        </a>
+    </div>
+
     <div class="container footer-grid" data-reveal="up">
-        <div><a class="brand" href="#inicio"><img src="{{ asset(config('landing.logo')) }}" width="46" height="46" alt=""><span>GRUPO <strong>KREA</strong><small>DESARROLLAMOS TU FUTURO</small></span></a><p>Un lugar para vivir.<br>Una oportunidad para crecer.</p></div>
-        <div><h3>Explora</h3><a href="#proyectos">Nuestros proyectos</a><a href="#nosotros">Nosotros</a><a href="#invertir">Por qué invertir</a></div>
-        <div><h3>Estamos contigo</h3><a href="#portal">Portal del cliente</a><a href="#preguntas">Preguntas frecuentes</a><a href="#blog">Guía de compra</a></div>
-        <div class="footer-contact"><h3>Hablemos</h3>
+        <div class="footer-brand-column">
+            <a class="brand footer-brand" href="#inicio" aria-label="Grupo Krea, volver al inicio">
+                <img src="{{ asset(config('landing.logo')) }}" width="54" height="54" alt="">
+                <span>GRUPO <strong>KREA</strong><small>DESARROLLAMOS TU FUTURO</small></span>
+            </a>
+            <p class="footer-brand-copy">Un lugar para vivir.<br>Una oportunidad para crecer.</p>
+            <div class="footer-brand-values" aria-label="Nuestros pilares"><span>VIVIR</span><i></i><span>INVERTIR</span><i></i><span>CRECER</span></div>
+        </div>
+
+        <nav class="footer-nav-column" aria-label="Explora">
+            <span class="footer-column-number">01</span>
+            <h3>Explora</h3>
+            <a href="#proyectos">Nuestros proyectos <span>↗</span></a>
+            <a href="#nosotros">Nosotros <span>↗</span></a>
+            <a href="#invertir">Por qué invertir <span>↗</span></a>
+        </nav>
+
+        <nav class="footer-nav-column" aria-label="Estamos contigo">
+            <span class="footer-column-number">02</span>
+            <h3>Estamos contigo</h3>
+            <a href="#portal">Portal del cliente <span>↗</span></a>
+            <a href="#preguntas">Preguntas frecuentes <span>↗</span></a>
+            <a href="#blog">Guía de compra <span>↗</span></a>
+        </nav>
+
+        <div class="footer-contact">
+            <span class="footer-column-number">03</span>
+            <h3>Hablemos</h3>
             @include('landing.contact-footer')
         </div>
     </div>
-    <div class="container footer-bottom"><span>© {{ date('Y') }} Grupo Krea. Todos los derechos reservados.</span><span>Hecho para crear futuro. <a href="#inicio">Volver arriba ↑</a></span></div>
+
+    <div class="container footer-signature" aria-hidden="true">
+        <span>GRUPO</span><strong>KREA</strong><i>DESARROLLAMOS TU FUTURO</i>
+    </div>
+
+    <div class="container footer-bottom">
+        <div class="footer-legal">
+            <span>© {{ date('Y') }} Grupo Krea</span>
+            <span class="footer-legal-dot" aria-hidden="true"></span>
+            <span>Todos los derechos reservados.</span>
+        </div>
+        <div class="footer-bottom-actions">
+            <span class="footer-credit"><span>by:</span> <a href="https://www.cicosysperu.com" target="_blank" rel="noopener noreferrer">CiCo Ingenieros <b aria-hidden="true">↗</b></a></span>
+            <a class="footer-backtop" href="#inicio">Volver arriba <span aria-hidden="true">↑</span></a>
+        </div>
+    </div>
 </footer>
 <dialog id="invest-location-dialog" class="invest-dialog" aria-labelledby="invest-location-title">
     <button class="dialog-close" type="button" aria-label="Cerrar">×</button>
