@@ -131,18 +131,6 @@
                                         <strong id="vp_payment_type">—</strong>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="payment-view-detail-item">
-                                        <span>Método de pago</span>
-                                        <strong id="vp_payment_method">—</strong>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="payment-view-detail-item">
-                                        <span>N.º operación</span>
-                                        <strong id="vp_operation_number">—</strong>
-                                    </div>
-                                </div>
                                 <div class="col-12">
                                     <div class="payment-view-detail-item payment-view-observation">
                                         <span>Observación</span>
@@ -177,6 +165,18 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="payment-receipts-section mt-3">
+                    <h6>MÉTODO DE PAGO</h6>
+                    <div>Método: <strong id="vp_payment_method"></strong></div>
+                    <div id="vp_origin_bank_row" hidden>
+                        <span id="vp_origin_bank_label">Banco de origen</span>: <strong id="vp_origin_bank"></strong>
+                    </div>
+                    <div id="vp_operation_row" hidden>N.º de operación / referencia: <strong id="vp_operation_number"></strong></div>
+                    <h6 class="mt-3">COMPROBANTES DE PAGO</h6>
+                    <p id="vp_receipts_message" class="text-muted" role="status"></p>
+                    <div id="vp_receipts" class="payment-receipts-grid"></div>
                 </div>
 
             </div>

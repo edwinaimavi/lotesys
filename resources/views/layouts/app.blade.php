@@ -98,6 +98,9 @@
     <div class="main-content-pro">
         @yield('content_body')
     </div>
+    @auth
+        @include('admin.chat.widget')
+    @endauth
 @stop
 
 @section('footer')

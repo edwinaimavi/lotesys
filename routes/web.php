@@ -1,13 +1,17 @@
 <?php
 
+use App\Http\Controllers\LandingController;
 use App\Livewire\Settings\Appearance;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+Route::get('/', [LandingController::class, 'index'])->name('home');
+Route::get('/buscar-lotes', [LandingController::class, 'searchLots'])->name('public.lots.search');
+Route::get('/buscar-lotes/presupuestos', [LandingController::class, 'priceRanges'])->name('public.lots.price-ranges');
+Route::get('/proyectos/{project}/lotes', [LandingController::class, 'projectLots'])->name('public.projects.lots');
+Route::get('/proyectos/{project}/availability-summary', [LandingController::class, 'availabilitySummary'])->name('public.projects.availability');
+Route::get('/proyectos/{project}/available-lots', [LandingController::class, 'availableProjectLots'])->name('public.projects.available-lots');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
@@ -22,6 +26,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+require __DIR__.'/portal.php';
 
 Auth::routes();
 

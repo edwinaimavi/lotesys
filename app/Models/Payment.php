@@ -19,6 +19,7 @@ class Payment extends Model
         'observation',
         'payment_method',
         'bank_id',
+        'origin_bank',
         'operation_number',
         'user_id',
         'status',
@@ -67,6 +68,11 @@ class Payment extends Model
     public function bank()
     {
         return $this->belongsTo(Bank::class);
+    }
+
+    public function receipts()
+    {
+        return $this->hasMany(PaymentReceipt::class);
     }
     public function invoice()
     {

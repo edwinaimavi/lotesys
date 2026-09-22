@@ -43,7 +43,7 @@
             <!-- BODY -->
             <div class="modal-body p-3" style="background: #f8fbfc;">
 
-                <form id="paymentForm" autocomplete="off" class="row">
+                <form id="paymentForm" autocomplete="off" class="row" enctype="multipart/form-data">
 
                     @csrf
 
@@ -143,19 +143,43 @@
 
                                             @foreach ($sales as $sale)
                                                 @php
-                                                    $customerName = $sale->customer?->person_type === 'juridica'
-                                                        ? ($sale->customer?->business_name ?? '—')
-                                                        : trim(($sale->customer?->first_name ?? '') . ' ' . ($sale->customer?->last_name ?? ''));
+                                                    $customer = $sale->customer;
+                                                    $customerName = $customer?->person_type === 'juridica'
+                                                        ? ($customer?->business_name ?? '—')
+                                                        : trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
                                                     $customerName = $customerName !== '' ? $customerName : '—';
+
+                                                    if ($customer?->person_type === 'juridica') {
+                                                        $customerShortName = $customerName;
+                                                    } else {
+                                                        $firstNames = preg_split('/\s+/u', trim((string) ($customer?->first_name ?? '')), -1, PREG_SPLIT_NO_EMPTY);
+                                                        $lastNames = preg_split('/\s+/u', trim((string) ($customer?->last_name ?? '')), -1, PREG_SPLIT_NO_EMPTY);
+                                                        $customerShortName = trim(($firstNames[0] ?? '') . ' ' . ($lastNames[0] ?? ''));
+                                                        $customerShortName = $customerShortName !== '' ? $customerShortName : $customerName;
+                                                    }
+
                                                     $companyName = $sale->lot?->project?->company?->business_name ?? '—';
                                                     $projectName = $sale->lot?->project?->name ?? '—';
                                                     $blockName = $sale->lot?->block?->name ?? '—';
                                                     $lotNumber = $sale->lot?->number ?? '—';
                                                     $lotCode = $sale->lot?->code ?? '—';
+                                                    $lotCount = max((int) ($sale->sale_lots_count ?? 0), 1);
+                                                    $isMultiple = $lotCount > 1;
+                                                    $primaryLotLabel = $blockName . ' / Lote ' . $lotNumber;
+                                                    $searchLabel = $isMultiple
+                                                        ? $sale->sale_code . ' · ' . $customerShortName . ' · ' . $lotCount . ' lotes · ' . $projectName . ' · ' . $companyName . ' · MÚLTIPLE'
+                                                        : $sale->sale_code . ' · ' . $customerShortName . ' · ' . $primaryLotLabel . ' · ' . $projectName . ' · ' . $companyName . ' · ' . $lotCode;
                                                 @endphp
 
-                                                <option value="{{ $sale->id }}">
-                                                    {{ $sale->sale_code }} · {{ $companyName }} · {{ $projectName }} · {{ $blockName }} / Lote {{ $lotNumber }} · {{ $lotCode }} · {{ $customerName }}
+                                                <option value="{{ $sale->id }}"
+                                                    data-sale-code="{{ $sale->sale_code }}"
+                                                    data-customer-short="{{ $customerShortName }}"
+                                                    data-project="{{ $projectName }}"
+                                                    data-company="{{ $companyName }}"
+                                                    data-lot-count="{{ $lotCount }}"
+                                                    data-primary-lot="{{ $primaryLotLabel }}"
+                                                    data-multiple="{{ $isMultiple ? '1' : '0' }}">
+                                                    {{ $searchLabel }}
                                                 </option>
                                             @endforeach
 
@@ -450,32 +474,32 @@
                                     <!-- BANCO -->
                                     <div class="form-group col-md-4" id="bank_container" style="display:none;">
 
-                                        <label for="bank_id" class="small font-weight-bold text-secondary">
+                                        <label for="origin_bank" class="small font-weight-bold text-secondary">
 
-                                            BANCO
+                                            Banco de origen
                                             <span class="text-danger">*</span>
 
                                         </label>
 
-                                        <select id="bank_id" name="bank_id" class="form-control form-control-sm">
+                                        <select id="origin_bank" name="origin_bank" class="form-control form-control-sm">
 
                                             <option value="">
-                                                Seleccione banco
+                                                Seleccione banco de origen
                                             </option>
 
-                                            @foreach ($banks as $bank)
-                                                <option value="{{ $bank->id }}">
-
-                                                    {{ $bank->bank_name }}
-                                                    -
-                                                    {{ $bank->currency }}
-
-                                                </option>
+                                            @foreach ($originBanks as $bank)
+                                                <option value="{{ $bank }}">{{ $bank }}</option>
                                             @endforeach
 
                                         </select>
 
-                                        <span class="invalid-feedback" id="bank_id-error"></span>
+                                        <span class="invalid-feedback" id="origin_bank-error"></span>
+                                        <div id="origin_bank_other_container" class="mt-2" style="display:none;">
+                                            <label for="origin_bank_other">Nombre de la entidad</label>
+                                            <input type="text" id="origin_bank_other" name="origin_bank_other"
+                                                maxlength="100" class="form-control form-control-sm" disabled>
+                                            <span class="invalid-feedback" id="origin_bank_other-error"></span>
+                                        </div>
 
                                     </div>
 
@@ -484,13 +508,13 @@
 
                                         <label for="operation_number" class="small font-weight-bold text-secondary">
 
-                                            N° OPERACIÓN
+                                            N.º de operación / referencia <span class="text-danger">*</span>
 
                                         </label>
 
                                         <input type="text" id="operation_number" name="operation_number"
                                             class="form-control form-control-sm"
-                                            placeholder="Ingrese número operación">
+                                            maxlength="100" placeholder="Ingrese número de operación / referencia">
 
                                         <span class="invalid-feedback" id="operation_number-error"></span>
 
@@ -516,6 +540,22 @@
                                     </div>
 
                                 </div>
+
+                                <section class="payment-receipts-section mb-3" aria-labelledby="paymentReceiptsTitle">
+                                    <h6 id="paymentReceiptsTitle">COMPROBANTES DE PAGO</h6>
+                                    <p class="text-muted mb-2">Adjunta uno o varios vouchers relacionados con este pago.</p>
+                                    <label class="payment-receipts-upload" for="receipts">
+                                        <i class="fas fa-file-invoice fa-2x" aria-hidden="true"></i>
+                                        <span>Haz clic para seleccionar tus vouchers</span>
+                                        <small>JPG, PNG, WEBP o PDF · máximo 5 MB por archivo · hasta 10 por pago</small>
+                                        <input type="file" id="receipts" name="receipts[]" multiple
+                                            accept=".jpg,.jpeg,.png,.webp,.pdf" aria-describedby="receipts-help">
+                                    </label>
+                                    <small id="receipts-help" class="text-muted">Puedes agregar archivos en varias selecciones y quitarlos antes de guardar.</small>
+                                    <div id="receipts-error" class="text-danger" role="alert"></div>
+                                    <div id="paymentReceiptPreviews" class="payment-receipts-grid" aria-live="polite"></div>
+                                    <div id="paymentExistingReceipts" class="payment-receipts-grid"></div>
+                                </section>
 
                                 <!-- NOTA -->
                                 <div class="form-row">

@@ -71,6 +71,34 @@ class Sale extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+
+    public function saleLots()
+    {
+        return $this->hasMany(SaleLot::class);
+    }
+
+    public function lots()
+    {
+        return $this->belongsToMany(
+            Lot::class,
+            'sale_lots'
+        )
+            ->withPivot([
+                'sale_price',
+                'is_primary'
+            ])
+            ->withTimestamps();
+    }
+
+    public function isMultipleLotSale(): bool
+    {
+        if ($this->relationLoaded('saleLots')) {
+            return $this->saleLots->count() > 1;
+        }
+
+        return $this->saleLots()->count() > 1;
+    }
+
     public function paymentSchedules()
     {
         return $this->hasMany(PaymentSchedule::class);

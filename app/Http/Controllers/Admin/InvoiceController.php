@@ -270,6 +270,7 @@ class InvoiceController extends Controller
     public function getPaymentDescription(Payment $payment)
     {
         $description = $this->buildPaymentDescription($payment);
+        $saleLotSummary = $this->buildSaleLotSummary($payment);
 
         // ==========================================
         // LEYENDA SUNAT
@@ -291,7 +292,8 @@ class InvoiceController extends Controller
             'success' => true,
             'data' => [
                 'description' => $description,
-                'legend' => $legend
+                'legend' => $legend,
+                'sale_lot_summary' => $saleLotSummary,
             ]
         ]);
     }
@@ -300,10 +302,12 @@ class InvoiceController extends Controller
     {
         $payment->loadMissing([
             'details.paymentSchedule',
-            'sale.lot.block.project'
+            'sale.lot.block.project',
+            'sale.saleLots.lot.block.project',
         ]);
 
-        $lot = $payment->sale->lot;
+        $sale = $payment->sale;
+        $lot = $sale->lot;
         $block = $lot?->block;
         $project = $block?->project;
         $blockName = trim($block->name ?? '');
@@ -316,6 +320,40 @@ class InvoiceController extends Controller
                 ' ' . strtoupper($project->name ?? '')
         );
 
+        $saleLots = $sale->saleLots
+            ->filter(fn ($saleLot) => $saleLot->lot)
+            ->sortByDesc('is_primary')
+            ->values();
+        $isMultipleLotSale = $saleLots->count() > 1;
+        $multipleSaleLocation = null;
+
+        if ($isMultipleLotSale) {
+            $projectName = strtoupper(
+                $saleLots->first()?->lot?->block?->project?->name
+                    ?? $project?->name
+                    ?? ''
+            );
+            $saleCode = trim((string) ($sale->sale_code ?? ''));
+
+            if ($saleLots->count() <= 4) {
+                $lotLabels = $saleLots
+                    ->map(fn ($saleLot) => $this->formatLotShortLabel($saleLot->lot))
+                    ->filter()
+                    ->implode(', ');
+
+                $multipleSaleLocation = trim(
+                    $saleCode . ' - LOTES ' . $lotLabels . ' - ' . $projectName,
+                    ' -'
+                );
+            } else {
+                $multipleSaleLocation = trim(
+                    'VENTA MÚLTIPLE ' . $saleCode .
+                        ' - ' . $saleLots->count() . ' LOTES - ' . $projectName,
+                    ' -'
+                );
+            }
+        }
+
         $details = $payment->details
             ->sortBy(function ($detail) {
                 return $detail->paymentSchedule->installment_number;
@@ -327,7 +365,9 @@ class InvoiceController extends Controller
             ->map(function ($detail, $index) use (
                 $payment,
                 $location,
-                $hasMultipleDetails
+                $hasMultipleDetails,
+                $isMultipleLotSale,
+                $multipleSaleLocation
             ) {
 
                 $schedule = $detail->paymentSchedule;
@@ -365,6 +405,13 @@ class InvoiceController extends Controller
                     $paymentLabel = 'PAGO PARCIAL';
                 }
 
+                if ($isMultipleLotSale) {
+                    return $paymentLabel . ' ' .
+                        $this->formatInstallmentVisualLabel($number) . ' - ' .
+                        $multipleSaleLocation . ' - S/ ' .
+                        number_format($appliedAmount, 2, '.', ',');
+                }
+
                 return $paymentLabel . ' ' .
                     $this->formatInstallmentVisualLabel($number) . ' ' .
                     $location . ' S/ ' .
@@ -373,6 +420,77 @@ class InvoiceController extends Controller
             ->implode(' / ');
 
         return trim($installments);
+    }
+
+    private function buildSaleLotSummary(Payment $payment): array
+    {
+        $payment->loadMissing([
+            'sale.saleLots.lot.block.project',
+        ]);
+
+        $sale = $payment->sale;
+        $saleLots = $sale->saleLots
+            ->filter(fn ($saleLot) => $saleLot->lot)
+            ->sortByDesc('is_primary')
+            ->values();
+
+        if ($saleLots->count() <= 1) {
+            return [
+                'is_multiple' => false,
+                'lot_count' => $saleLots->count() ?: 1,
+                'sale_code' => $sale->sale_code,
+                'project_name' => null,
+                'lots' => [],
+            ];
+        }
+
+        $firstLot = $saleLots->first()?->lot;
+
+        return [
+            'is_multiple' => true,
+            'lot_count' => $saleLots->count(),
+            'sale_code' => $sale->sale_code,
+            'project_name' => $firstLot?->block?->project?->name,
+            'lots' => $saleLots
+                ->map(function ($saleLot) {
+                    $lot = $saleLot->lot;
+
+                    return [
+                        'label' => $this->formatLotLongLabel($lot),
+                        'code' => $lot->code,
+                    ];
+                })
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function formatLotShortLabel($lot): string
+    {
+        if (! $lot) {
+            return '';
+        }
+
+        $blockName = trim((string) ($lot->block?->name ?? ''));
+        $blockLabel = str_starts_with(strtoupper($blockName), 'MZ')
+            ? strtoupper($blockName)
+            : 'MZ ' . strtoupper($blockName);
+
+        return trim($blockLabel . '/L' . ($lot->number ?? ''));
+    }
+
+    private function formatLotLongLabel($lot): string
+    {
+        if (! $lot) {
+            return '';
+        }
+
+        $blockName = trim((string) ($lot->block?->name ?? ''));
+        $blockLabel = str_starts_with(strtoupper($blockName), 'MZ')
+            ? $blockName
+            : 'MZ ' . $blockName;
+
+        return trim($blockLabel . ' / Lote ' . ($lot->number ?? ''));
     }
 
     private function formatInstallmentVisualLabel($installmentNumber): string

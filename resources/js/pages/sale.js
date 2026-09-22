@@ -2153,3 +2153,565 @@ $(document).on('click', '#btnPdfSchedule', async function () {
     }
 
 });
+
+// =============================================================
+// VENTA MÚLTIPLE · FLUJO ADITIVO
+// Mantiene intacto el formulario de venta simple existente.
+// =============================================================
+$(function () {
+
+    const $multiModal = $('#multiSaleModal');
+    const $multiForm = $('#multiSaleForm');
+    const $multiLots = $('#multi_lot_ids');
+
+    if (!$multiModal.length || !$multiForm.length || !$multiLots.length) {
+        return;
+    }
+
+    let multiLotsCatalog = new Map();
+    let multiLotsLoading = false;
+
+    function money(value) {
+        return 'S/ ' + (parseFloat(value || 0) || 0).toFixed(2);
+    }
+
+    function initMultiSelect2() {
+        if (typeof $.fn.select2 === 'undefined') {
+            return;
+        }
+
+        const selects = [
+            {
+                selector: '#multi_customer_id',
+                placeholder: 'Seleccione un cliente'
+            },
+            {
+                selector: '#multi_lot_ids',
+                placeholder: 'Seleccione 2 o más lotes'
+            }
+        ];
+
+        selects.forEach(function (item) {
+            const $select = $(item.selector);
+
+            if ($select.hasClass('select2-hidden-accessible')) {
+                $select.select2('destroy');
+            }
+
+            $select.select2({
+                width: '100%',
+                dropdownParent: $multiModal,
+                placeholder: item.placeholder,
+                closeOnSelect: item.selector !== '#multi_lot_ids'
+            });
+        });
+    }
+
+    function generateMultiSaleCode() {
+        return $.ajax({
+            url: window.routes.generateSaleCode,
+            type: 'GET'
+        }).done(function (response) {
+            $('#multi_sale_code').val(response.code || '');
+        });
+    }
+
+    function loadMultiAvailableLots() {
+        if (multiLotsLoading) {
+            return $.Deferred().reject().promise();
+        }
+
+        multiLotsLoading = true;
+        multiLotsCatalog = new Map();
+
+        $multiLots
+            .prop('disabled', true)
+            .empty()
+            .trigger('change');
+
+        return $.ajax({
+            url: window.routes.availableLots,
+            type: 'GET'
+        }).done(function (lots) {
+            lots.forEach(function (lot) {
+                const normalized = {
+                    id: String(lot.id),
+                    company_id: String(lot.company_id || ''),
+                    company: lot.company || '—',
+                    project_id: String(lot.project_id || ''),
+                    project: lot.project || '—',
+                    block_id: String(lot.block_id || ''),
+                    block: lot.block || '—',
+                    lot_number: lot.lot_number || '—',
+                    lot_code: lot.lot_code || '—',
+                    area: lot.area,
+                    unit_measure: lot.unit_measure || 'm²',
+                    cash_price: parseFloat(lot.cash_price || 0) || 0,
+                    financed_price: parseFloat(lot.financed_price || 0) || 0,
+                    text: lot.text || `Lote ${lot.lot_number || lot.id}`
+                };
+
+                multiLotsCatalog.set(normalized.id, normalized);
+
+                const option = new Option(
+                    normalized.text,
+                    normalized.id,
+                    false,
+                    false
+                );
+
+                $multiLots.append(option);
+            });
+        }).fail(function (xhr) {
+            console.error('Error loading multi-sale lots', xhr);
+
+            Swal.fire({
+                icon: 'error',
+                title: 'No se pudieron cargar los lotes',
+                text: 'Actualiza la página e intenta nuevamente.'
+            });
+        }).always(function () {
+            multiLotsLoading = false;
+            $multiLots.prop('disabled', false);
+        });
+    }
+
+    function selectedMultiLots() {
+        return ($multiLots.val() || [])
+            .map(function (id) {
+                return multiLotsCatalog.get(String(id));
+            })
+            .filter(Boolean);
+    }
+
+    function multiPriceForLot(lot) {
+        return $('#multi_sale_type').val() === 'contado'
+            ? lot.cash_price
+            : lot.financed_price;
+    }
+
+    function renderMultiLots() {
+        const lots = selectedMultiLots();
+        const $container = $('#multi_selected_lots');
+
+        $('#multi_lot_counter').text(`${lots.length} seleccionados`);
+        $('#multi_summary_count').text(`${lots.length} ${lots.length === 1 ? 'lote' : 'lotes'}`);
+
+        if (!lots.length) {
+            $container.html(`
+                <div class="multi-empty-lots">
+                    <i class="fas fa-map mr-2"></i>
+                    Seleccione los lotes que formarán parte de la venta.
+                </div>
+            `);
+            return;
+        }
+
+        let html = '';
+
+        lots.forEach(function (lot) {
+            const area = lot.area
+                ? `${lot.area} ${lot.unit_measure || 'm²'}`
+                : 'Área no registrada';
+
+            html += `
+                <div class="multi-lot-row">
+                    <div class="min-w-0">
+                        <div class="multi-lot-name">
+                            ${escapeMultiSaleHtml(lot.block)} · Lote ${escapeMultiSaleHtml(lot.lot_number)}
+                            <span class="text-muted">· ${escapeMultiSaleHtml(lot.lot_code)}</span>
+                        </div>
+                        <div class="multi-lot-meta">
+                            ${escapeMultiSaleHtml(lot.company)} · ${escapeMultiSaleHtml(lot.project)} · ${escapeMultiSaleHtml(area)}
+                        </div>
+                    </div>
+                    <div class="multi-lot-price">${money(multiPriceForLot(lot))}</div>
+                </div>
+            `;
+        });
+
+        $container.html(html);
+    }
+
+    function escapeMultiSaleHtml(value) {
+        return $('<div>').text(value == null ? '' : String(value)).html();
+    }
+
+    function calculateMultiFinance() {
+        const lots = selectedMultiLots();
+        const total = lots.reduce(function (sum, lot) {
+            return sum + multiPriceForLot(lot);
+        }, 0);
+
+        const saleType = $('#multi_sale_type').val();
+        let initial = parseFloat($('#multi_initial_payment').val() || 0) || 0;
+        let installments = parseInt($('#multi_installments_count').val() || 0, 10) || 0;
+        const paymentMode = $('#multi_payment_mode').val();
+
+        if (saleType === 'contado') {
+            initial = 0;
+            installments = 1;
+            $('#multi_initial_payment').val('0.00').prop('readonly', true);
+            $('#multi_installments_count').val(1).prop('readonly', true);
+            $('#multi_payment_mode').val('automatico');
+            $('#multi_custom_payment_container').addClass('d-none');
+            $('#multi_interest_rate').val('0.00').prop('readonly', true);
+
+            const saleDate = $('#multi_sale_date').val();
+            $('#multi_first_payment_date').val(saleDate).prop('readonly', true);
+
+            if (saleDate) {
+                $('#multi_payment_day').val(parseInt(saleDate.split('-')[2], 10)).prop('readonly', true);
+            }
+        } else {
+            $('#multi_initial_payment').prop('readonly', false);
+            $('#multi_installments_count').prop('readonly', false);
+            $('#multi_interest_rate').prop('readonly', false);
+            $('#multi_first_payment_date').prop('readonly', false);
+            $('#multi_payment_day').prop('readonly', false);
+        }
+
+        let balance = Math.max(total - initial, 0);
+        let monthly = 0;
+
+        if (saleType === 'contado') {
+            balance = total;
+            monthly = total;
+        } else if ($('#multi_payment_mode').val() === 'personalizado') {
+            monthly = parseFloat($('#multi_custom_payment').val() || 0) || 0;
+        } else if (installments > 0) {
+            monthly = balance / installments;
+        }
+
+        $('#multi_lot_price').val(total.toFixed(2));
+        $('#multi_balance_finance').val(balance.toFixed(2));
+        $('#multi_monthly_payment').val(monthly.toFixed(2));
+
+        $('#multi_total_price_label').text(money(total));
+        $('#multi_balance_label').text(money(balance));
+        $('#multi_monthly_label').text(money(monthly));
+
+        renderMultiLots();
+    }
+
+    function ensureSameMultiProject() {
+        const ids = $multiLots.val() || [];
+
+        if (ids.length <= 1) {
+            return true;
+        }
+
+        const lots = ids
+            .map(id => multiLotsCatalog.get(String(id)))
+            .filter(Boolean);
+
+        const firstProject = lots[0]?.project_id;
+        const invalid = lots.some(lot => lot.project_id !== firstProject);
+
+        if (!invalid) {
+            return true;
+        }
+
+        const correctedIds = ids.slice(0, -1);
+
+        $multiLots
+            .val(correctedIds)
+            .trigger('change.select2');
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Proyecto diferente',
+            text: 'En esta primera versión todos los lotes de la venta deben pertenecer al mismo proyecto.',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3500
+        });
+
+        return false;
+    }
+
+    function toggleMultiCustomPayment() {
+        const personalized = $('#multi_payment_mode').val() === 'personalizado'
+            && $('#multi_sale_type').val() !== 'contado';
+
+        $('#multi_custom_payment_container')
+            .toggleClass('d-none', !personalized);
+
+        if (!personalized) {
+            $('#multi_custom_payment').val('');
+        }
+
+        calculateMultiFinance();
+    }
+
+    function toggleMultiLegacyFields() {
+        const active = $('#multi_is_legacy_sale').is(':checked');
+
+        $('#multi_legacy_fields').toggleClass('d-none', !active);
+        $('#multi_collection_rules_start_date, #multi_legacy_observation')
+            .prop('disabled', !active);
+
+        if (!active) {
+            $('#multi_collection_rules_start_date, #multi_legacy_observation').val('');
+        }
+    }
+
+    function resetMultiSaleForm() {
+        $multiForm[0].reset();
+
+        $('#multi_status').val('activo');
+        $('#multi_sale_type').val('financiado');
+        $('#multi_payment_mode').val('automatico');
+        $('#multi_initial_payment').val('0.00').prop('readonly', false);
+        $('#multi_installments_count').val(1).prop('readonly', false);
+        $('#multi_interest_rate').val('0.00').prop('readonly', false);
+        $('#multi_first_payment_date').prop('readonly', false);
+        $('#multi_payment_day').prop('readonly', false);
+        $('#multi_custom_payment_container').addClass('d-none');
+        $('#multi_is_legacy_sale').prop('checked', false);
+        toggleMultiLegacyFields();
+
+        $multiLots.val(null).trigger('change');
+        $('#multi_customer_id').val(null).trigger('change');
+
+        $multiForm.find('.is-invalid').removeClass('is-invalid');
+        $multiForm.find('.invalid-feedback').text('');
+
+        calculateMultiFinance();
+    }
+
+    $multiModal.on('show.bs.modal', function () {
+        resetMultiSaleForm();
+        initMultiSelect2();
+        generateMultiSaleCode();
+        loadMultiAvailableLots();
+
+        const saleDate = $('#multi_sale_date').val();
+        $('#multi_first_payment_date').val(saleDate);
+
+        if (saleDate) {
+            $('#multi_payment_day').val(parseInt(saleDate.split('-')[2], 10));
+        }
+    });
+
+    $multiModal.on('shown.bs.modal', function () {
+        initMultiSelect2();
+    });
+
+    $multiLots.on('change', function () {
+        if (!ensureSameMultiProject()) {
+            calculateMultiFinance();
+            return;
+        }
+
+        $('#multi_lot_ids-error').text('');
+        calculateMultiFinance();
+    });
+
+    $('#multi_sale_type').on('change', function () {
+        toggleMultiCustomPayment();
+        calculateMultiFinance();
+    });
+
+    $('#multi_initial_payment, #multi_installments_count, #multi_custom_payment')
+        .on('keyup change', calculateMultiFinance);
+
+    $('#multi_payment_mode').on('change', toggleMultiCustomPayment);
+
+    $('#multi_sale_date').on('change', function () {
+        const value = $(this).val();
+
+        if ($('#multi_sale_type').val() === 'financiado' && value) {
+            $('#multi_first_payment_date').val(value);
+            $('#multi_payment_day').val(parseInt(value.split('-')[2], 10));
+        }
+
+        calculateMultiFinance();
+    });
+
+    $('#multi_is_legacy_sale').on('change', toggleMultiLegacyFields);
+
+    $multiForm.on('submit', function (e) {
+        e.preventDefault();
+
+        const ids = $multiLots.val() || [];
+
+        if (ids.length < 2) {
+            $('#multi_lot_ids-error').text('Seleccione al menos 2 lotes.');
+            $multiLots.addClass('is-invalid');
+            return;
+        }
+
+        if (!ensureSameMultiProject()) {
+            return;
+        }
+
+        calculateMultiFinance();
+
+        const btn = $('#btnSaveMultiSale');
+
+        if (btn.prop('disabled')) {
+            return;
+        }
+
+        btn.prop('disabled', true).html(`
+            <span class="spinner-border spinner-border-sm mr-1"></span>
+            Guardando...
+        `);
+
+        if (divLoading) {
+            divLoading.style.display = 'flex';
+        }
+
+        const formData = new FormData(this);
+
+        $.ajax({
+            url: window.routes.storeMultipleSale,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                if (divLoading) {
+                    divLoading.style.display = 'none';
+                }
+
+                btn.prop('disabled', false).html(`
+                    <i class="fas fa-layer-group mr-1"></i>
+                    Guardar venta múltiple
+                `);
+
+                $multiModal.modal('hide');
+                tableSale.ajax.reload(null, false);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: response.message || 'Venta múltiple registrada correctamente.',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3200
+                });
+            },
+            error: function (xhr) {
+                if (divLoading) {
+                    divLoading.style.display = 'none';
+                }
+
+                btn.prop('disabled', false).html(`
+                    <i class="fas fa-layer-group mr-1"></i>
+                    Guardar venta múltiple
+                `);
+
+                $multiForm.find('.is-invalid').removeClass('is-invalid');
+                $multiForm.find('.invalid-feedback').text('');
+
+                if (xhr.status === 422) {
+                    const errors = xhr.responseJSON?.errors || {};
+
+                    $.each(errors, function (key, messages) {
+                        const message = Array.isArray(messages)
+                            ? messages[0]
+                            : messages;
+
+                        const normalizedKey = key.startsWith('lot_ids')
+                            ? 'lot_ids'
+                            : key;
+
+                        $(`#multi_${normalizedKey}`).addClass('is-invalid');
+                        $(`#multi_${normalizedKey}-error`).text(message || 'Dato inválido.');
+                    });
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Revisa la información',
+                        text: 'Hay datos de la venta múltiple que necesitan corrección.'
+                    });
+
+                    return;
+                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo registrar',
+                    text: xhr.responseJSON?.message || 'Ocurrió un error al registrar la venta múltiple.'
+                });
+            }
+        });
+    });
+
+});
+
+// =============================================================
+// PRESENTACIÓN DE LOTES ASOCIADOS EN VENTA MÚLTIPLE
+// =============================================================
+$(document).on('click', '.viewSale', function () {
+    const $button = $(this);
+
+    setTimeout(function () {
+        const isMultiple = parseInt($button.data('is_multiple') || 0, 10) === 1;
+        const encodedLots = $button.attr('data-sale_lots') || '';
+
+        $('#vs_lots_multiple_wrapper').addClass('d-none');
+        $('#vs_lots_multiple').empty();
+        $('#vs_location_title').text('Ubicación e identificación del lote');
+        $('#vs_precio_label').text('Precio del lote');
+
+        if (!isMultiple || !encodedLots) {
+            return;
+        }
+
+        let lots = [];
+
+        try {
+            lots = JSON.parse(decodeURIComponent(encodedLots));
+        } catch (error) {
+            console.error('No se pudo interpretar los lotes de la venta.', error);
+            return;
+        }
+
+        if (!Array.isArray(lots) || lots.length === 0) {
+            return;
+        }
+
+        const first = lots[0];
+
+        $('#vs_location_title').text('Ubicación e identificación de los lotes');
+        $('#vs_precio_label').text('Precio total de los lotes');
+        $('#vs_empresa').text(first.company || '—');
+        $('#vs_empresa_ruc').text(first.company_ruc || '—');
+        $('#vs_proyecto').text(first.project || '—');
+        $('#vs_manzana').text('Varios');
+        $('#vs_lote_numero').text(`${lots.length} lotes`);
+        $('#vs_lote_codigo').text('Venta múltiple');
+
+        const html = lots.map(function (lot) {
+            const area = lot.area
+                ? `${lot.area} ${lot.unit_measure || 'm²'}`
+                : 'Área no registrada';
+
+            return `
+                <div class="sale-multi-lot-chip">
+                    <strong>${$('<div>').text(`${lot.block || '—'} · Lote ${lot.lot_number || '—'}`).html()}</strong>
+                    <span>${$('<div>').text(`${lot.lot_code || '—'} · ${area}`).html()}</span>
+                </div>
+            `;
+        }).join('');
+
+        $('#vs_lots_multiple').html(html);
+        $('#vs_lots_multiple_wrapper').removeClass('d-none');
+    }, 0);
+});
+
+$(document).on('click', '.viewSchedule', function () {
+    const $button = $(this);
+
+    setTimeout(function () {
+        const lotsSummary = $button.data('lots_summary');
+
+        if (lotsSummary) {
+            $('#ps_lot').text(lotsSummary);
+        }
+    }, 0);
+});

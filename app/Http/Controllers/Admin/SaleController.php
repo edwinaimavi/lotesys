@@ -7,6 +7,8 @@ use App\Models\Customer;
 use App\Models\LateFeeSetting;
 use App\Models\Lot;
 use App\Models\Sale;
+use App\Models\SaleLot;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -51,6 +53,8 @@ class SaleController extends Controller
             'customer',
             'lot.project.company',
             'lot.block',
+            'saleLots.lot.project.company',
+            'saleLots.lot.block',
             'creator',
             'updater'
         )
@@ -90,19 +94,47 @@ class SaleController extends Controller
 
             ->addColumn('lot_location', function ($sale) {
 
-                if (!$sale->lot) {
+                $lots = $this->getSaleLotsForDisplay($sale);
+
+                if ($lots->isEmpty()) {
                     return '—';
                 }
 
-                $block = $sale->lot->block?->name ?? '—';
-                $number = $sale->lot->number ?? '—';
+                if ($lots->count() === 1) {
+                    $lot = $lots->first();
 
-                return $block . ' / LT ' . $number;
+                    return ($lot->block?->name ?? '—')
+                        . ' / LT '
+                        . ($lot->number ?? '—');
+                }
+
+                $summary = $lots
+                    ->map(function ($lot) {
+                        return ($lot->block?->name ?? '—')
+                            . '/LT '
+                            . ($lot->number ?? '—');
+                    })
+                    ->implode(', ');
+
+                return $lots->count() . ' lotes · ' . $summary;
             })
 
             ->addColumn('lot_code', function ($sale) {
 
-                return $sale->lot?->code ?? '—';
+                $lots = $this->getSaleLotsForDisplay($sale);
+
+                if ($lots->isEmpty()) {
+                    return '—';
+                }
+
+                if ($lots->count() === 1) {
+                    return $lots->first()?->code ?? '—';
+                }
+
+                return $lots
+                    ->pluck('code')
+                    ->filter()
+                    ->implode(', ');
             })
 
             ->editColumn('sale_date', function ($sale) {
@@ -238,11 +270,16 @@ class SaleController extends Controller
                         . ' · ' . $blockName
                         . ' · Lote ' . $lotNumber
                         . ' · ' . $lot->code,
+                    'company_id' => $company?->id,
                     'company' => $companyName,
+                    'project_id' => $lot->project_id,
                     'project' => $projectName,
+                    'block_id' => $lot->block_id,
                     'block' => $blockName,
                     'lot_number' => $lotNumber,
                     'lot_code' => $lot->code,
+                    'area' => $lot->area,
+                    'unit_measure' => $lot->unit_measure,
                     'cash_price' => $lot->cash_price,
                     'financed_price' => $lot->financed_price
                 ];
@@ -479,6 +516,324 @@ class SaleController extends Controller
     }
 
     /**
+     * STORE MULTIPLE
+     *
+     * Registra una sola venta y un solo cronograma para varios lotes.
+     * sales.lot_id se conserva como lote principal para mantener
+     * compatibilidad con los módulos que todavía trabajan con un lote.
+     */
+    public function storeMultiple(Request $request)
+    {
+        $data = $request->validate([
+            'sale_code' => [
+                'required',
+                'string',
+                'max:100',
+                'unique:sales,sale_code'
+            ],
+
+            'customer_id' => [
+                'required',
+                'exists:customers,id'
+            ],
+
+            'lot_ids' => [
+                'required',
+                'array',
+                'min:2'
+            ],
+
+            'lot_ids.*' => [
+                'required',
+                'integer',
+                'distinct',
+                'exists:lots,id'
+            ],
+
+            'sale_type' => [
+                'required',
+                'in:contado,financiado'
+            ],
+
+            'sale_date' => [
+                'required',
+                'date'
+            ],
+
+            'initial_payment' => [
+                'required',
+                'numeric',
+                'min:0'
+            ],
+
+            'installments_count' => [
+                'required',
+                'integer',
+                'min:1'
+            ],
+
+            'payment_mode' => [
+                'required',
+                'in:automatico,personalizado'
+            ],
+
+            'custom_payment' => [
+                'nullable',
+                'numeric',
+                'min:1'
+            ],
+
+            'interest_rate' => [
+                'nullable',
+                'numeric',
+                'min:0'
+            ],
+
+            'first_payment_date' => [
+                'nullable',
+                'date'
+            ],
+
+            'payment_day' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:31'
+            ],
+
+            'late_fee_setting_id' => [
+                'nullable',
+                'exists:late_fee_settings,id'
+            ],
+
+            'status' => [
+                'required',
+                'in:activo,cancelado,rescindido,finalizado'
+            ],
+
+            'is_legacy_sale' => [
+                'nullable',
+                'boolean'
+            ],
+
+            'collection_rules_start_date' => [
+                'required_if:is_legacy_sale,1',
+                'nullable',
+                'date'
+            ],
+
+            'legacy_observation' => [
+                'nullable',
+                'string'
+            ],
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $requestedLotIds = collect($data['lot_ids'])
+                ->map(fn ($id) => (int) $id)
+                ->values();
+
+            $lotsById = Lot::with([
+                'project.company',
+                'block'
+            ])
+                ->whereIn('id', $requestedLotIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            if ($lotsById->count() !== $requestedLotIds->count()) {
+                throw ValidationException::withMessages([
+                    'lot_ids' => 'Uno o más lotes seleccionados ya no están disponibles.'
+                ]);
+            }
+
+            $lots = $requestedLotIds
+                ->map(fn ($id) => $lotsById->get($id))
+                ->filter()
+                ->values();
+
+            $projectIds = $lots
+                ->pluck('project_id')
+                ->unique()
+                ->values();
+
+            if ($projectIds->count() !== 1) {
+                throw ValidationException::withMessages([
+                    'lot_ids' => 'Todos los lotes de una venta múltiple deben pertenecer al mismo proyecto.'
+                ]);
+            }
+
+            $notAvailable = $lots
+                ->filter(fn ($lot) => $lot->status !== 'disponible');
+
+            if ($notAvailable->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'lot_ids' => 'Uno o más lotes seleccionados dejaron de estar disponibles.'
+                ]);
+            }
+
+            $hasActiveSimpleSale = Sale::whereIn('lot_id', $requestedLotIds)
+                ->where('status', 'activo')
+                ->exists();
+
+            $hasActiveMultipleSale = SaleLot::whereIn('lot_id', $requestedLotIds)
+                ->whereHas('sale', function ($query) {
+                    $query->where('status', 'activo');
+                })
+                ->exists();
+
+            if ($hasActiveSimpleSale || $hasActiveMultipleSale) {
+                throw ValidationException::withMessages([
+                    'lot_ids' => 'Uno o más lotes ya pertenecen a una venta activa.'
+                ]);
+            }
+
+            $isCashSale = $data['sale_type'] === 'contado';
+
+            $lotPrices = $lots->mapWithKeys(function ($lot) use ($isCashSale) {
+                $price = $isCashSale
+                    ? (float) $lot->cash_price
+                    : (float) $lot->financed_price;
+
+                return [
+                    $lot->id => round($price, 2)
+                ];
+            });
+
+            $totalPrice = round((float) $lotPrices->sum(), 2);
+            $initialPayment = round((float) $data['initial_payment'], 2);
+
+            if ($initialPayment - $totalPrice > 0.01) {
+                throw ValidationException::withMessages([
+                    'initial_payment' => 'La inicial no puede superar el precio total de los lotes.'
+                ]);
+            }
+
+            if ($isCashSale) {
+                $initialPayment = 0;
+                $balanceFinance = $totalPrice;
+                $installmentsCount = 1;
+                $paymentMode = 'automatico';
+                $customPayment = null;
+                $monthlyPayment = $totalPrice;
+                $interestRate = 0;
+                $firstPaymentDate = $data['sale_date'];
+                $paymentDay = Carbon::parse($data['sale_date'])->day;
+            } else {
+                if (empty($data['first_payment_date']) || empty($data['payment_day'])) {
+                    throw ValidationException::withMessages([
+                        'first_payment_date' => 'Debe indicar la fecha del primer pago.'
+                    ]);
+                }
+
+                $balanceFinance = round($totalPrice - $initialPayment, 2);
+                $installmentsCount = (int) $data['installments_count'];
+                $paymentMode = $data['payment_mode'];
+                $customPayment = $paymentMode === 'personalizado'
+                    ? round((float) ($data['custom_payment'] ?? 0), 2)
+                    : null;
+
+                if ($paymentMode === 'personalizado' && $customPayment <= 0) {
+                    throw ValidationException::withMessages([
+                        'custom_payment' => 'Debe ingresar una cuota personalizada válida.'
+                    ]);
+                }
+
+                $monthlyPayment = $paymentMode === 'personalizado'
+                    ? $customPayment
+                    : round($balanceFinance / max($installmentsCount, 1), 2);
+                $interestRate = round((float) ($data['interest_rate'] ?? 0), 2);
+                $firstPaymentDate = $data['first_payment_date'];
+                $paymentDay = (int) $data['payment_day'];
+            }
+
+            $isLegacySale = $request->boolean('is_legacy_sale');
+
+            $saleData = [
+                'customer_id' => $data['customer_id'],
+                // Primer lote = lote principal/referencial para compatibilidad.
+                'lot_id' => $lots->first()->id,
+                'sale_type' => $data['sale_type'],
+                'sale_code' => $data['sale_code'],
+                'sale_date' => $data['sale_date'],
+                // En una venta múltiple lot_price representa el total de todos los lotes.
+                'lot_price' => $totalPrice,
+                'initial_payment' => $initialPayment,
+                'balance_finance' => $balanceFinance,
+                'installments_count' => $installmentsCount,
+                'payment_mode' => $paymentMode,
+                'custom_payment' => $customPayment,
+                'monthly_payment' => $monthlyPayment,
+                'interest_rate' => $interestRate,
+                'first_payment_date' => $firstPaymentDate,
+                'payment_day' => $paymentDay,
+                'late_fee_setting_id' => $data['late_fee_setting_id'] ?? null,
+                'status' => $data['status'],
+                'is_legacy_sale' => $isLegacySale,
+                'collection_rules_start_date' => $isLegacySale
+                    ? ($data['collection_rules_start_date'] ?? null)
+                    : null,
+                'legacy_observation' => $isLegacySale
+                    ? ($data['legacy_observation'] ?? null)
+                    : null,
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+            ];
+
+            $sale = Sale::create($saleData);
+
+            foreach ($lots as $index => $lot) {
+                SaleLot::create([
+                    'sale_id' => $sale->id,
+                    'lot_id' => $lot->id,
+                    'sale_price' => $lotPrices[$lot->id],
+                    'is_primary' => $index === 0,
+                ]);
+            }
+
+            $this->generatePaymentSchedules($sale, $saleData);
+
+            $lotStatus = (float) $balanceFinance <= 0
+                ? 'vendido'
+                : 'separado';
+
+            foreach ($lots as $lot) {
+                $lot->status = $lotStatus;
+                $lot->save();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Venta múltiple registrada correctamente.',
+                'data' => $sale->fresh([
+                    'saleLots.lot.project.company',
+                    'saleLots.lot.block'
+                ])
+            ], 201);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error(
+                'Error creating multi-lot sale: ' . $e->getMessage()
+            );
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al registrar la venta múltiple.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * EDIT
      */
     public function edit($id)
@@ -521,6 +876,13 @@ class SaleController extends Controller
                 'message' => 'Venta no encontrada.'
 
             ], 404);
+        }
+
+        if ($sale->saleLots()->count() > 1) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'La edición de ventas múltiples se realizará desde su flujo específico.'
+            ], 422);
         }
 
         $data = $request->validate([
@@ -781,6 +1143,10 @@ class SaleController extends Controller
     {
         $sale = Sale::with([
             'lateFeeSetting',
+            'lot.project.company',
+            'lot.block',
+            'saleLots.lot.project.company',
+            'saleLots.lot.block',
             'paymentSchedules' => function ($q) {
                 $q->orderBy('installment_number')->orderBy('id');
             }
@@ -894,11 +1260,55 @@ class SaleController extends Controller
 
             'history' => $historial,
 
+            'lot_summary' => $this->formatSaleLotsSummary($sale),
+
         ]);
     }
     /**
      * DELETE
      */
+
+
+    private function getSaleLotsForDisplay(Sale $sale)
+    {
+        if (! $sale->relationLoaded('saleLots')) {
+            $sale->load([
+                'saleLots.lot.project.company',
+                'saleLots.lot.block'
+            ]);
+        }
+
+        $lots = $sale->saleLots
+            ->sortByDesc('is_primary')
+            ->map(fn ($saleLot) => $saleLot->lot)
+            ->filter()
+            ->values();
+
+        if ($lots->isEmpty() && $sale->lot) {
+            $lots = collect([$sale->lot]);
+        }
+
+        return $lots;
+    }
+
+    private function formatSaleLotsSummary(Sale $sale): string
+    {
+        $lots = $this->getSaleLotsForDisplay($sale);
+
+        if ($lots->isEmpty()) {
+            return '—';
+        }
+
+        return $lots
+            ->map(function ($lot) {
+                return ($lot->block?->name ?? '—')
+                    . ' · Lote '
+                    . ($lot->number ?? '—')
+                    . ' · '
+                    . ($lot->code ?? '—');
+            })
+            ->implode(' | ');
+    }
 
 
     private function generatePaymentSchedules(Sale $sale, array $data): void
@@ -1126,17 +1536,22 @@ class SaleController extends Controller
         try {
 
             // =====================================================
-            // RESTAURAR LOTE
+            // RESTAURAR LOTE(S)
             // =====================================================
 
-            $lot = Lot::find($sale->lot_id);
+            $sale->loadMissing('saleLots');
 
-            if ($lot) {
+            $lotIds = $sale->saleLots
+                ->pluck('lot_id')
+                ->filter()
+                ->values();
 
-                $lot->status = 'disponible';
-
-                $lot->save();
+            if ($lotIds->isEmpty() && $sale->lot_id) {
+                $lotIds = collect([$sale->lot_id]);
             }
+
+            Lot::whereIn('id', $lotIds)
+                ->update(['status' => 'disponible']);
 
             // =====================================================
             // ELIMINAR VENTA

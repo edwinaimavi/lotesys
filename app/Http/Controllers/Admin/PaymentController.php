@@ -15,7 +15,7 @@ use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\Bank;
+use App\Models\PaymentReceipt;
 use App\Models\Lot;
 use Carbon\Carbon;
 use App\Models\Holiday;
@@ -26,6 +26,107 @@ use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
 {
+    private function validatePaymentEvidence(Request $request): array
+    {
+        foreach (['origin_bank', 'origin_bank_other', 'operation_number'] as $field) {
+            if (is_string($request->input($field))) {
+                $request->merge([$field => trim($request->input($field))]);
+            }
+        }
+
+        $data = $request->validate([
+            'payment_method' => ['required', 'in:efectivo,transferencia,deposito,yape,plin'],
+            'origin_bank' => ['exclude_unless:payment_method,transferencia', 'required', 'string', 'max:100'],
+            'origin_bank_other' => ['exclude_unless:payment_method,transferencia', 'exclude_unless:origin_bank,Otra entidad', 'required', 'string', 'max:100'],
+            'operation_number' => ['exclude_if:payment_method,efectivo', 'required', 'string', 'max:100'],
+            'receipts' => ['nullable', 'array', 'max:10'],
+            'receipts.*' => [
+                'required', 'file', 'max:5120', 'mimes:jpg,jpeg,png,webp,pdf',
+                'mimetypes:image/jpeg,image/png,image/webp,application/pdf',
+                function ($attribute, $file, $fail) {
+                    if (!$file instanceof \Illuminate\Http\UploadedFile ||
+                        !in_array(strtolower($file->getClientOriginalExtension()), ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true)) {
+                        $fail('El comprobante debe ser JPG, PNG, WEBP o PDF.');
+                    }
+                },
+            ],
+        ], [
+            'origin_bank.required' => 'Seleccione el banco de origen.',
+            'origin_bank_other.required' => 'Ingrese el nombre de la entidad.',
+            'operation_number.required' => 'Ingrese el N.º de operación / referencia.',
+            'receipts.max' => 'Se permiten como máximo 10 comprobantes por pago.',
+            'receipts.*.max' => 'Cada comprobante debe pesar como máximo 5 MB.',
+        ]);
+
+        return [
+            'origin_bank' => ($data['origin_bank'] ?? null) === 'Otra entidad'
+                ? $data['origin_bank_other'] : ($data['origin_bank'] ?? null),
+            'operation_number' => $data['operation_number'] ?? null,
+        ];
+    }
+
+    private function storeReceipts(Payment $payment, Request $request, array &$storedPaths): void
+    {
+        $files = $request->file('receipts', []);
+        if ($payment->receipts()->count() + count($files) > 10) {
+            throw ValidationException::withMessages(['receipts' => 'Se permiten como máximo 10 comprobantes por pago.']);
+        }
+
+        foreach ($files as $file) {
+            $path = PaymentReceipt::storage()->putFile((string) $payment->id, $file);
+            if (!$path) {
+                throw new \RuntimeException('No se pudo almacenar el comprobante.');
+            }
+            $storedPaths[] = $path;
+            $payment->receipts()->create([
+                'disk' => PaymentReceipt::DISK,
+                'path' => $path,
+                'original_name' => mb_substr($file->getClientOriginalName(), 0, 255),
+                'mime_type' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+                'created_by' => Auth::id(),
+            ]);
+        }
+    }
+
+    private function removeStoredReceipts(array $paths): void
+    {
+        foreach ($paths as $path) {
+            PaymentReceipt::storage()->delete($path);
+        }
+    }
+
+    public function evidence(Payment $payment)
+    {
+        return response()->json([
+            'origin_bank' => $payment->origin_bank,
+            'historical_bank' => $payment->origin_bank ? null : $payment->bank?->bank_name,
+            'operation_number' => $payment->operation_number,
+            'receipts' => $payment->receipts()->orderBy('id')->get()->map(fn ($receipt) => [
+                'name' => $receipt->original_name,
+                'mime_type' => $receipt->mime_type,
+                'file_size' => $receipt->file_size,
+                'url' => route('admin.payments.receipts.show', [$payment, $receipt]),
+            ]),
+        ]);
+    }
+
+    public function receipt(Payment $payment, PaymentReceipt $receipt)
+    {
+        abort_unless((int) $receipt->payment_id === (int) $payment->id, 404);
+        abort_unless($receipt->disk === PaymentReceipt::DISK, 404);
+        abort_unless(in_array($receipt->mime_type, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], true), 404);
+        $storage = PaymentReceipt::storage();
+        abort_unless($storage->exists($receipt->path), 404);
+
+        return $storage->response($receipt->path, 'comprobante-' . $receipt->id . '.' . pathinfo($receipt->path, PATHINFO_EXTENSION), [
+            'Content-Type' => $receipt->mime_type,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+        ], 'inline');
+    }
+
     /**
      * INDEX
      */
@@ -36,6 +137,7 @@ class PaymentController extends Controller
             'lot.project.company',
             'lot.block',
         ])
+            ->withCount('saleLots')
             ->whereHas('paymentSchedules', function ($q) {
 
                 $q->whereIn('status', [
@@ -52,17 +154,15 @@ class PaymentController extends Controller
             ->get();
 
         // ============================================
-        // BANCOS ACTIVOS
+        // ENTIDADES DE ORIGEN INDEPENDIENTES DE LAS CUENTAS DE LA EMPRESA
         // ============================================
 
-        $banks = Bank::where('status', 'activo')
-            ->orderBy('bank_name')
-            ->get();
+        $originBanks = config('payments.origin_banks');
 
         return view('admin.payments.index', compact(
             'sales',
             'paymentSchedules',
-            'banks'
+            'originBanks'
         ));
     }
 
@@ -195,6 +295,8 @@ class PaymentController extends Controller
      */
     public function store(Request $request)
     {
+        $evidence = $this->validatePaymentEvidence($request);
+        $storedPaths = [];
         $data = $request->validate([
 
             'sale_id' => [
@@ -238,17 +340,6 @@ class PaymentController extends Controller
             'payment_method' => [
                 'required',
                 'in:efectivo,transferencia,yape,plin,deposito'
-            ],
-
-            'bank_id' => [
-                'nullable',
-                'exists:banks,id'
-            ],
-
-            'operation_number' => [
-                'nullable',
-                'string',
-                'max:100'
             ],
 
             'status' => [
@@ -383,9 +474,8 @@ class PaymentController extends Controller
                 'discount'          => $data['discount'] ?? 0,
                 'observation'       => $data['observation'] ?? null,
                 'payment_method'    => $data['payment_method'],
-                'bank_id'           => $data['bank_id'] ?? null,
-
-                'operation_number'  => $data['operation_number'] ?? null,
+                'origin_bank'       => $evidence['origin_bank'],
+                'operation_number'  => $evidence['operation_number'],
                 'status'            => $data['status'],
                 'created_by'        => $data['created_by'],
                 'updated_by'        => $data['updated_by'],
@@ -514,6 +604,7 @@ class PaymentController extends Controller
                 $data['sale_id']
             );
 
+            $this->storeReceipts($payment, $request, $storedPaths);
             DB::commit();
 
             return response()->json([
@@ -528,11 +619,13 @@ class PaymentController extends Controller
         } catch (ValidationException $e) {
 
             DB::rollBack();
+            $this->removeStoredReceipts($storedPaths);
 
             throw $e;
         } catch (\Throwable $e) {
 
             DB::rollBack();
+            $this->removeStoredReceipts($storedPaths);
 
             Log::error(
                 'Error creating payment: ' . $e->getMessage()
@@ -542,9 +635,7 @@ class PaymentController extends Controller
 
                 'status' => 'error',
 
-                'message' => 'Error al registrar el pago.',
-
-                'error' => $e->getMessage()
+                'message' => 'Error al registrar el pago.'
 
             ], 500);
         }
@@ -595,6 +686,8 @@ class PaymentController extends Controller
             ], 404);
         }
 
+        $evidence = $this->validatePaymentEvidence($request);
+        $storedPaths = [];
         $data = $request->validate([
 
             'sale_id' => [
@@ -645,17 +738,6 @@ class PaymentController extends Controller
                 'in:efectivo,transferencia,yape,plin,deposito'
             ],
 
-            'bank_id' => [
-                'nullable',
-                'exists:banks,id'
-            ],
-
-            'operation_number' => [
-                'nullable',
-                'string',
-                'max:100'
-            ],
-
             'status' => [
                 'required',
                 'in:activo,anulado'
@@ -672,7 +754,8 @@ class PaymentController extends Controller
                 $data['updated_by'] = Auth::id();
             }
 
-            $payment->update($data);
+            $payment = Payment::whereKey($id)->lockForUpdate()->firstOrFail();
+            $payment->update(array_merge($data, $evidence));
 
             // =====================================================
             // ACTUALIZAR CRONOGRAMA
@@ -710,6 +793,7 @@ class PaymentController extends Controller
                 }
             }
 
+            $this->storeReceipts($payment, $request, $storedPaths);
             DB::commit();
 
             return response()->json([
@@ -721,9 +805,15 @@ class PaymentController extends Controller
                 'data' => $payment->fresh()
 
             ]);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            $this->removeStoredReceipts($storedPaths);
+            throw $e;
         } catch (\Throwable $e) {
 
             DB::rollBack();
+
+            $this->removeStoredReceipts($storedPaths);
 
             Log::error(
                 'Error updating payment: ' . $e->getMessage()
@@ -733,9 +823,7 @@ class PaymentController extends Controller
 
                 'status' => 'error',
 
-                'message' => 'Error al actualizar el pago.',
-
-                'error' => $e->getMessage()
+                'message' => 'Error al actualizar el pago.'
 
             ], 500);
         }
@@ -892,65 +980,8 @@ class PaymentController extends Controller
 
     private function calculateLateFeeForSchedule(PaymentSchedule $schedule): float
     {
-        $sale = $schedule->sale;
-
-        if (!$sale || !$sale->lateFeeSetting) {
-            return 0;
-        }
-
-        $setting = $sale->lateFeeSetting;
-        $today = Carbon::today();
-        $dueDate = $schedule->getEffectiveDueDate();
-
-        if ($today->lte($dueDate)) {
-            return 0;
-        }
-
-        $daysLate = 0;
-        $current = $dueDate->copy();
-
-        while ($current->lt($today)) {
-
-            $current->addDay();
-
-            $isSunday = $current->dayOfWeek === Carbon::SUNDAY;
-
-            $isHoliday = Holiday::where(
-                'date',
-                $current->format('Y-m-d')
-            )
-                ->where('status', 'activo')
-                ->exists();
-
-            if (!$setting->apply_sundays && $isSunday) {
-                continue;
-            }
-
-            if (!$setting->apply_holidays && $isHoliday) {
-                continue;
-            }
-
-            $daysLate++;
-        }
-
-        $daysLate -= (int) $setting->grace_days;
-
-        if ($daysLate < 0) {
-            $daysLate = 0;
-        }
-
-        $lateFee = $daysLate * (float) $setting->daily_late_fee;
-
-        if (
-            $setting->max_late_fee &&
-            $lateFee > $setting->max_late_fee
-        ) {
-            $lateFee = $setting->max_late_fee;
-        }
-
-        return round($lateFee, 2);
+        return app(\App\Services\PaymentScheduleLateFee::class)->calculate($schedule);
     }
-
     private function updateSaleAndLotStatus($saleId): void
     {
         $sale = Sale::with([

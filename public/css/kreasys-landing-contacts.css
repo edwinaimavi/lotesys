@@ -1,0 +1,52 @@
+#contact-module .lc-stats{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:16px;margin:20px 0}#contact-module .lc-stats>div{padding:20px 24px;background:white;border:1px solid #e2e9df;border-radius:14px}#contact-module .lc-stats small{display:block;color:#72806a;font-size:10px;font-weight:700;letter-spacing:.07em}#contact-module .lc-stats strong{display:block;margin-top:8px;font-size:22px;color:#245238;overflow-wrap:anywhere}#contact-module .lc-card{border:1px solid #e2e9df;border-radius:14px;box-shadow:0 5px 15px #173b2b08}#contact-module th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#6c7b65;background:#f5f8f2}#contact-module td{vertical-align:middle;font-size:13px;padding-block:18px}#contact-module td:nth-child(4){min-width:190px;max-width:320px;overflow-wrap:anywhere;white-space:pre-line}#contact-module td:last-child{min-width:190px}#contact-module .badge{padding:6px 9px;margin:2px}#contact-module .modal-content{border:0;border-radius:18px;overflow:hidden}#contact-module .modal-header{background:#eef4e8;padding:22px 26px;color:#245238}#contact-module .modal-header small{font-size:10px;letter-spacing:.12em}#contact-module .modal-title{font-weight:700;margin-top:5px}#contact-form{display:flex;flex-direction:column;overflow:hidden;min-height:0}#contact-form .modal-body{padding:24px;overflow-y:auto}#contact-form .modal-footer{flex-shrink:0;background:#fafcf8}#contact-form label{font-size:13px}#contact-form .form-control{border-radius:9px;border-color:#d5e1cf;min-height:44px}#contact-form .form-control:focus{border-color:#83a86a;box-shadow:0 0 0 3px #87bc2720}#contact-form .lc-options{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px;border:1px solid #e0e8db;border-radius:12px;background:#f7faf4}#contact-module [hidden]{display:none!important}#contact-form .lc-options input{accent-color:#245238;margin-right:6px}#contact-module button:focus-visible{outline:3px solid #87bc27;outline-offset:2px}@media(max-width:767px){#contact-module .lc-stats{grid-template-columns:1fr;gap:10px}#contact-module .lc-stats>div{padding:15px 18px}#contact-form .lc-options{grid-template-columns:1fr}#contact-form .modal-body{padding:18px}#contact-module .modal-dialog{margin:12px}#contact-module .table-responsive{padding:8px}}
+
+/* Acciones: mismo lenguaje visual del resto del administrador */
+#contact-module .lc-actions-cell{
+    min-width:260px;
+    white-space:nowrap;
+}
+#contact-module .lc-actions{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    flex-wrap:wrap;
+}
+#contact-module .lc-action-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    min-height:34px;
+    padding:6px 11px;
+    border-radius:8px;
+    font-weight:600;
+    line-height:1;
+    box-shadow:0 2px 5px rgba(19,49,35,.08);
+    transition:transform .16s ease,box-shadow .16s ease,filter .16s ease;
+}
+#contact-module .lc-action-btn i{
+    font-size:12px;
+}
+#contact-module .lc-action-btn:hover{
+    transform:translateY(-1px);
+    box-shadow:0 5px 10px rgba(19,49,35,.13);
+    filter:saturate(1.04);
+}
+#contact-module .lc-action-btn:active{
+    transform:translateY(0);
+    box-shadow:0 2px 5px rgba(19,49,35,.08);
+}
+#contact-module .lc-action-btn.btn-warning{
+    color:#212529;
+}
+@media(max-width:767px){
+    #contact-module .lc-actions-cell{min-width:220px}
+    #contact-module .lc-actions{justify-content:flex-start}
+    #contact-module .lc-action-btn{padding:6px 9px}
+}
+@media(prefers-reduced-motion:reduce){
+    #contact-module .lc-action-btn{transition:none}
+    #contact-module .lc-action-btn:hover{transform:none}
+}
+

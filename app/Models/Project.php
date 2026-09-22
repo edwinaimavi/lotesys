@@ -72,4 +72,9 @@ class Project extends Model
     {
         return $this->hasMany(Lot::class);
     }
+
+    public function webProfile()
+    {
+        return $this->hasOne(ProjectWebProfile::class);
+    }
 }

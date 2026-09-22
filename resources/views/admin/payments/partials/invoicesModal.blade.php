@@ -144,6 +144,62 @@
         color: #92400e;
     }
 
+    #generateInvoiceModal .invoice-multiple-lots {
+        border: 1px solid #dce8c7;
+        border-left: 3px solid #87BC27;
+        border-radius: 10px;
+        background: #fbfdf8;
+        padding: .7rem .8rem;
+    }
+
+    #generateInvoiceModal .invoice-multiple-lots-title {
+        font-size: .76rem;
+        font-weight: 800;
+        color: #334155;
+        letter-spacing: .02em;
+    }
+
+    #generateInvoiceModal .invoice-multiple-lots-meta {
+        font-size: .72rem;
+        color: #64748b;
+    }
+
+    #generateInvoiceModal .invoice-lot-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .25rem;
+        margin: .18rem .2rem .18rem 0;
+        padding: .28rem .48rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #fff;
+        color: #334155;
+        font-size: .72rem;
+        line-height: 1.15;
+    }
+
+    #generateInvoiceModal .invoice-lot-chip small {
+        color: #94a3b8;
+        font-size: .66rem;
+    }
+
+    #generateInvoiceModal .invoice-lot-chip.is-extra {
+        display: none;
+    }
+
+    #generateInvoiceModal .invoice-multiple-lots.is-expanded .invoice-lot-chip.is-extra {
+        display: inline-flex;
+    }
+
+    #generateInvoiceModal .invoice-toggle-lots {
+        border: 0;
+        background: transparent;
+        padding: .25rem 0 0;
+        color: #5f8f13;
+        font-size: .72rem;
+        font-weight: 700;
+    }
+
     @media (max-width: 991.98px) {
         #generateInvoiceModal .invoice-side {
             position: static;
@@ -322,6 +378,25 @@
                                 <div class="card-header">Descripción del Comprobante</div>
                                 <div class="card-body">
                                     <textarea class="form-control" rows="2" id="description" name="description"></textarea>
+
+                                    <div id="invoiceMultipleLotsCard" class="invoice-multiple-lots d-none mt-3">
+                                        <div class="d-flex justify-content-between align-items-start flex-wrap">
+                                            <div>
+                                                <div class="invoice-multiple-lots-title">
+                                                    <i class="fas fa-th-large mr-1"></i>
+                                                    Lotes asociados a esta venta
+                                                </div>
+                                                <div class="invoice-multiple-lots-meta mt-1" id="invoiceMultipleLotsMeta">—</div>
+                                            </div>
+                                            <span class="badge badge-success mt-1" id="invoiceMultipleLotsCount">0 lotes</span>
+                                        </div>
+
+                                        <div class="mt-2" id="invoiceMultipleLotsList"></div>
+
+                                        <button type="button" id="invoiceToggleLots" class="invoice-toggle-lots d-none">
+                                            Ver todos
+                                        </button>
+                                    </div>
 
                                     <div class="mt-3">
                                         <label>Leyenda SUNAT</label>

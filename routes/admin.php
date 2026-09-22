@@ -11,16 +11,31 @@ use App\Http\Controllers\Admin\HolidayController;
 
 use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\LateFeeSettingController;
+use App\Http\Controllers\Admin\LandingSliderController;
 
 use App\Http\Controllers\Admin\LotController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\ProjectWebProfileController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\RescissionController;
 use Illuminate\Support\Facades\Route;
+
+// Chat privado: disponible para todos los usuarios autenticados.
+Route::middleware('auth')->prefix('chat')->name('chat.')->group(function () {
+    Route::post('heartbeat', [\App\Http\Controllers\Admin\ChatController::class, 'heartbeat'])->name('heartbeat');
+    Route::get('messages/{message}/attachments/{attachment}', [\App\Http\Controllers\Admin\ChatController::class, 'attachment'])->name('attachments.show');
+    Route::get('users', [\App\Http\Controllers\Admin\ChatController::class, 'users'])->name('users');
+    Route::get('unread-count', [\App\Http\Controllers\Admin\ChatController::class, 'unreadCount'])->name('unread-count');
+    Route::get('users/{user}/messages', [\App\Http\Controllers\Admin\ChatController::class, 'messages'])->name('messages');
+    Route::post('users/{user}/messages', [\App\Http\Controllers\Admin\ChatController::class, 'send'])->middleware('throttle:60,1,chat-send:')->name('send');
+    Route::post('users/{user}/read', [\App\Http\Controllers\Admin\ChatController::class, 'markRead'])->name('read');
+    Route::post('users/{user}/clear', [\App\Http\Controllers\Admin\ChatController::class, 'clearConversation'])->name('clear');
+    Route::delete('users/{user}/conversation', [\App\Http\Controllers\Admin\ChatController::class, 'deleteConversation'])->name('conversation.delete');
+});
 
 
 
@@ -45,6 +60,23 @@ Route::get(
     [ProjectController::class, 'generateCode']
 )->name('projects.generate.code');
 Route::resource('projects', ProjectController::class)->except(['create', 'show']);
+
+// CONTENIDO DE LA WEB PÚBLICA: SLIDER PRINCIPAL
+Route::get('landing-contacts', [\App\Http\Controllers\Admin\LandingContactController::class, 'index'])->name('landing-contacts.index');
+Route::post('landing-contacts', [\App\Http\Controllers\Admin\LandingContactController::class, 'store'])->name('landing-contacts.store');
+Route::get('landing-contacts/{landingContact}', [\App\Http\Controllers\Admin\LandingContactController::class, 'show'])->name('landing-contacts.show');
+Route::put('landing-contacts/{landingContact}', [\App\Http\Controllers\Admin\LandingContactController::class, 'update'])->name('landing-contacts.update');
+Route::patch('landing-contacts/{landingContact}/toggle', [\App\Http\Controllers\Admin\LandingContactController::class, 'toggle'])->name('landing-contacts.toggle');
+
+Route::get('landing-sliders', [LandingSliderController::class, 'index'])->name('landing-sliders.index');
+Route::post('landing-sliders', [LandingSliderController::class, 'store'])->name('landing-sliders.store');
+Route::get('landing-sliders/{landingSlider}', [LandingSliderController::class, 'show'])->name('landing-sliders.show');
+Route::put('landing-sliders/{landingSlider}', [LandingSliderController::class, 'update'])->name('landing-sliders.update');
+Route::patch('landing-sliders/{landingSlider}/toggle', [LandingSliderController::class, 'toggle'])->name('landing-sliders.toggle');
+
+Route::get('project-web-profiles', [ProjectWebProfileController::class, 'index'])->name('project-web-profiles.index');
+Route::get('project-web-profiles/{project}', [ProjectWebProfileController::class, 'show'])->name('project-web-profiles.show');
+Route::put('project-web-profiles/{project}', [ProjectWebProfileController::class, 'update'])->name('project-web-profiles.update');
 
 //RUTAS PARA MANZANAS
 Route::get('blocks/list', [BlockController::class, 'list'])->name('blocks.list');
@@ -103,6 +135,10 @@ Route::get(
     [SaleController::class, 'availableLots']
 )->name('sales.available.lots');
 
+Route::post(
+    'sales/multiple',
+    [SaleController::class, 'storeMultiple']
+)->name('sales.store.multiple');
 
 
 Route::resource('sales', SaleController::class)
@@ -111,6 +147,10 @@ Route::resource('sales', SaleController::class)
 
 //RUTAS PARA PAGOS
 Route::get('payments/list', [PaymentController::class, 'list'])->name('payments.list');
+Route::get('payments/{payment}/evidence', [PaymentController::class, 'evidence'])
+    ->middleware('auth')->name('payments.evidence');
+Route::get('payments/{payment}/receipts/{receipt}', [PaymentController::class, 'receipt'])
+    ->middleware('auth')->name('payments.receipts.show');
 
 Route::get(
     'payments/schedules/{sale}',

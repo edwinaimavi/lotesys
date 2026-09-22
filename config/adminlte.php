@@ -329,6 +329,32 @@ return [
             'label_color' => 'success',
         ],
 
+        ['header' => 'WEB PÚBLICA'],
+
+        [
+            'text' => 'Slider principal',
+            'url' => 'admin/landing-sliders',
+            'icon' => 'fas fa-images',
+            'icon_color' => 'success',
+            'can' => 'admin.landing-sliders.index',
+        ],
+
+        [
+            'text' => 'Proyectos web',
+            'url' => 'admin/project-web-profiles',
+            'icon' => 'fas fa-building',
+            'icon_color' => 'success',
+            'can' => 'admin.project-web-profiles.index',
+        ],
+
+        [
+            'text' => 'Contacto y redes',
+            'url' => 'admin/landing-contacts',
+            'icon' => 'fas fa-address-book',
+            'icon_color' => 'success',
+            'can' => 'admin.landing-contacts.index',
+        ],
+
         ['header' => 'OPERACIONES'],
 
         [

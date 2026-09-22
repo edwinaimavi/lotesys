@@ -145,6 +145,7 @@
     @include('admin.payments.partials.modal')
 
     @include('admin.payments.partials.viewModal')
+    @include('admin.payments.partials.receipts')
 
     @include('admin.payments.partials.invoicesModal')
 
@@ -189,6 +190,81 @@
             font-size: 11px;
         }
 
+        #paymentModal .payment-sale-select2 .select2-selection--single {
+            height: 48px !important;
+            min-height: 48px;
+            padding: 3px 28px 3px 8px !important;
+            display: flex;
+            align-items: center;
+        }
+
+        #paymentModal .payment-sale-select2 .select2-selection__rendered {
+            width: 100%;
+            padding: 0 !important;
+            line-height: 1.15 !important;
+            overflow: hidden;
+        }
+
+        #paymentModal .payment-sale-select2 .select2-selection__arrow {
+            height: 46px !important;
+        }
+
+        .payment-sale-choice {
+            padding: 5px 4px;
+            line-height: 1.2;
+            min-width: 0;
+        }
+
+        .payment-sale-choice--selected {
+            padding: 0;
+            width: 100%;
+        }
+
+        .payment-sale-choice__top {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .payment-sale-choice__main {
+            color: #263238;
+            font-weight: 700;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+
+        .payment-sale-choice__meta {
+            margin-top: 3px;
+            color: #7a8791;
+            font-size: 10.5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .payment-sale-choice__badge {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 6px;
+            border-radius: 999px;
+            border: 1px solid rgba(135, 188, 39, .42);
+            background: rgba(135, 188, 39, .12);
+            color: #5d8415;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: .03em;
+        }
+
+        #paymentModal .select2-results__option--highlighted .payment-sale-choice__main,
+        #paymentModal .select2-results__option--highlighted .payment-sale-choice__meta {
+            color: inherit;
+        }
+
         .breadcrumb {
             margin-bottom: 0;
         }
@@ -210,6 +286,7 @@
             paymentList: "{{ route('admin.payments.list') }}",
 
             storePayment: "{{ route('admin.payments.store') }}",
+            paymentEvidence: "{{ url('admin/payments') }}/:id/evidence",
 
             deletePayment: "{{ url('admin/payments') }}",
 

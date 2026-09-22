@@ -7,6 +7,7 @@ export default defineConfig({
             input: [
                 'resources/sass/app.scss',
                 'resources/js/app.js',
+                'resources/js/pages/chat.js',
                 'resources/js/pages/amortization.js',
                 'resources/js/pages/bank.js',
                 'resources/js/pages/block.js',

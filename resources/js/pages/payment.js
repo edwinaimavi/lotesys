@@ -2,6 +2,124 @@ var divLoading = document.getElementById('divLoading');
 
 let tablePayment;
 
+let paymentReceiptFiles = [];
+let paymentExistingReceiptCount = 0;
+let paymentEvidenceRequest = null;
+let paymentDetailEvidenceRequest = null;
+
+function resetPaymentReceipts() {
+    if (paymentEvidenceRequest) paymentEvidenceRequest.abort();
+    paymentReceiptFiles.forEach(item => URL.revokeObjectURL(item.url));
+    paymentReceiptFiles = [];
+    paymentExistingReceiptCount = 0;
+    $('#receipts').val('');
+    $('#paymentReceiptPreviews, #paymentExistingReceipts, #receipts-error').empty();
+    $('#btnSavePayment').prop('disabled', false);
+}
+
+function openPaymentReceipt(url, name, source) {
+    const viewer = document.getElementById('paymentReceiptViewer');
+    // Dentro del modal activo para conservar su foco y su scroll.
+    $(source).closest('.modal').append(viewer);
+    $('#paymentReceiptViewerTitle').text(name);
+    $('#paymentReceiptViewerImage').attr('src', url);
+    viewer.showModal();
+}
+
+function receiptCard(item, source, remove) {
+    const card = $('<div>', { class: 'payment-receipt-card' });
+    const isImage = item.mime_type.startsWith('image/');
+    let open;
+    if (isImage) {
+        open = $('<button>', { type: 'button', class: 'payment-receipt-open', 'aria-label': 'Ampliar ' + item.name });
+        open.append($('<img>', { src: item.url, alt: item.name, loading: 'lazy' }));
+        open.on('click', function () { openPaymentReceipt(item.url, item.name, this); });
+    } else {
+        open = $('<a>', { href: item.url, target: '_blank', rel: 'noopener noreferrer', class: 'payment-receipt-open' });
+        open.append($('<span>').append($('<i>', { class: 'fas fa-file-pdf mr-1', 'aria-hidden': 'true' })).append(document.createTextNode('Ver PDF')));
+    }
+    card.append(open, $('<span>', { class: 'payment-receipt-name', title: item.name }).text(item.name));
+    card.append($('<small>', { class: 'text-muted' }).text((item.file_size / 1024).toFixed(1) + ' KB'));
+    if (remove) {
+        card.append($('<button>', { type: 'button', class: 'payment-receipt-remove', 'aria-label': 'Quitar ' + item.name })
+            .text('×').on('click', remove));
+    }
+    $(source).append(card);
+}
+
+function renderPaymentReceiptPreviews() {
+    $('#paymentReceiptPreviews').empty();
+    paymentReceiptFiles.forEach((item, index) => receiptCard({
+        name: item.file.name, file_size: item.file.size, mime_type: item.file.type, url: item.url
+    }, '#paymentReceiptPreviews', () => {
+        URL.revokeObjectURL(item.url);
+        paymentReceiptFiles.splice(index, 1);
+        $('#receipts-error').empty();
+        renderPaymentReceiptPreviews();
+    }));
+}
+
+$(document).on('change', '#receipts', function () {
+    const files = Array.from(this.files || []);
+    this.value = '';
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    let error = '';
+    if (files.length + paymentReceiptFiles.length + paymentExistingReceiptCount > 10) {
+        error = 'Se permiten como máximo 10 comprobantes por pago.';
+    } else if (files.some(file => file.size > 5 * 1024 * 1024 || !allowed.includes(file.type) || !/\.(jpe?g|png|webp|pdf)$/i.test(file.name))) {
+        error = 'Seleccione JPG, PNG, WEBP o PDF de hasta 5 MB por archivo.';
+    }
+    $('#receipts-error').text(error);
+    if (error) return;
+    files.forEach(file => paymentReceiptFiles.push({ file, url: URL.createObjectURL(file) }));
+    renderPaymentReceiptPreviews();
+});
+
+$(document).on('click', '.payment-receipt-close', function () {
+    document.getElementById('paymentReceiptViewer').close();
+});
+
+function loadPaymentEvidence(id, editing) {
+    if (editing && paymentEvidenceRequest) paymentEvidenceRequest.abort();
+    if (!editing && paymentDetailEvidenceRequest) paymentDetailEvidenceRequest.abort();
+    const target = editing ? '#paymentExistingReceipts' : '#vp_receipts';
+    $(target).empty();
+    if (editing) {
+        $('#btnSavePayment').prop('disabled', true);
+    } else {
+        $('#vp_origin_bank_row, #vp_operation_row').prop('hidden', true);
+        $('#vp_receipts_message').text('Cargando comprobantes…');
+    }
+    const request = $.getJSON(window.routes.paymentEvidence.replace(':id', encodeURIComponent(id)))
+        .done(data => {
+            if (editing) {
+                const bank = data.origin_bank || '';
+                const known = $('#origin_bank option').toArray().some(option => option.value === bank);
+                $('#origin_bank').val(known ? bank : 'Otra entidad');
+                $('#origin_bank_other').val(known ? '' : bank);
+                $('#operation_number').val(data.operation_number || '');
+                paymentExistingReceiptCount = data.receipts.length;
+                togglePaymentFields();
+                $('#btnSavePayment').prop('disabled', false);
+            } else {
+                const bank = data.origin_bank || data.historical_bank;
+                $('#vp_origin_bank_row').prop('hidden', !bank);
+                $('#vp_origin_bank_label').text(data.origin_bank ? 'Banco de origen' : 'Banco registrado (histórico)');
+                $('#vp_origin_bank').text(bank || '');
+                $('#vp_operation_number').text(data.operation_number || '');
+                $('#vp_operation_row').prop('hidden', !data.operation_number);
+                $('#vp_receipts_message').text(data.receipts.length ? '' : 'No se adjuntaron comprobantes de pago.');
+            }
+            data.receipts.forEach(item => receiptCard(item, target));
+        }).fail((xhr, status) => {
+            if (status === 'abort') return;
+            const message = 'No se pudieron cargar los comprobantes. Cierre y vuelva a abrir el pago.';
+            $(editing ? '#receipts-error' : '#vp_receipts_message').text(message);
+        });
+    if (editing) paymentEvidenceRequest = request;
+    else paymentDetailEvidenceRequest = request;
+}
+
 function formatPaymentDateForDisplay(dateValue) {
     const dateParts = String(dateValue || '').split('T')[0].split('-');
 
@@ -15,6 +133,68 @@ function formatPaymentDateForDisplay(dateValue) {
 $(function () {
     $('[data-toggle="tooltip"]').tooltip();
 });
+
+function paymentSaleSelectData(state) {
+
+    if (!state || !state.element) {
+        return null;
+    }
+
+    const $option = $(state.element);
+
+    return {
+        saleCode: $option.data('sale-code') || '',
+        customer: $option.data('customer-short') || '',
+        project: $option.data('project') || '',
+        company: $option.data('company') || '',
+        lotCount: parseInt($option.data('lot-count'), 10) || 1,
+        primaryLot: $option.data('primary-lot') || '',
+        multiple: String($option.data('multiple')) === '1'
+    };
+}
+
+function paymentSaleSelectTemplate(state, compact = false) {
+
+    if (!state.id) {
+        return state.text;
+    }
+
+    const data = paymentSaleSelectData(state);
+
+    if (!data) {
+        return state.text;
+    }
+
+    const $wrapper = $('<div>', {
+        class: compact
+            ? 'payment-sale-choice payment-sale-choice--selected'
+            : 'payment-sale-choice'
+    });
+
+    const $top = $('<div>', { class: 'payment-sale-choice__top' });
+    $('<span>', {
+        class: 'payment-sale-choice__main',
+        text: data.multiple
+            ? `${data.saleCode} · ${data.customer} · ${data.lotCount} lotes`
+            : `${data.saleCode} · ${data.customer} · ${data.primaryLot}`
+    }).appendTo($top);
+
+    if (data.multiple) {
+        $('<span>', {
+            class: 'payment-sale-choice__badge',
+            text: 'MÚLTIPLE'
+        }).appendTo($top);
+    }
+
+    $wrapper.append($top);
+
+    $('<div>', {
+        class: 'payment-sale-choice__meta',
+        text: `${data.project} · ${data.company}`
+    }).appendTo($wrapper);
+
+    return $wrapper;
+}
 
 function initPaymentSelect2() {
 
@@ -34,9 +214,12 @@ function initPaymentSelect2() {
     $sale.select2({
         width: '100%',
         dropdownParent: $('#paymentModal'),
-        placeholder: 'Seleccione una venta'
+        placeholder: 'Seleccione una venta',
+        templateResult: state => paymentSaleSelectTemplate(state, false),
+        templateSelection: state => paymentSaleSelectTemplate(state, true)
     });
 
+    $sale.next('.select2-container').addClass('payment-sale-select2');
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -238,6 +421,8 @@ document.addEventListener("DOMContentLoaded", function () {
         let type = '';
 
         const formData = new FormData(this);
+        formData.delete('receipts[]');
+        paymentReceiptFiles.forEach(item => formData.append('receipts[]', item.file));
 
         if (id) {
 
@@ -324,11 +509,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     $.each(errors, function (key, messages) {
 
-                        const input = $(`#${key}`);
+                        const input = $(document.getElementById(key));
 
                         input.addClass('is-invalid');
 
-                        $(`#${key}-error`).text(messages[0]);
+                        $(document.getElementById(key + '-error')).text(messages[0]);
 
                     });
 
@@ -403,6 +588,8 @@ document.addEventListener("DOMContentLoaded", function () {
         $('#operation_number').val($(this).data('operation_number'));
 
         $('#status').val($(this).data('status'));
+        resetPaymentReceipts();
+        loadPaymentEvidence(id, true);
 
         $('.icon_modal').html(`
             <i class="far fa-edit text-primary"></i>
@@ -429,6 +616,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Limpiar formulario
         $form[0].reset();
         $form.removeAttr('data-id');
+        resetPaymentReceipts();
 
         // Restaurar título
         $('#paymentModalLabel').html('NUEVO PAGO');
@@ -473,7 +661,7 @@ document.addEventListener("DOMContentLoaded", function () {
         $('#bank_container').hide();
         $('#operation_container').hide();
 
-        $('#bank_id').val('');
+        $('#origin_bank, #origin_bank_other').val('');
         $('#operation_number').val('');
 
     });
@@ -683,6 +871,7 @@ document.addEventListener("DOMContentLoaded", function () {
         $('#vp_created_at').text($button.data('created_at') || '—');
         $('#vp_updated_at').text($button.data('updated_at') || '—');
 
+        loadPaymentEvidence($button.data('id'), false);
         $('#viewPaymentModal').modal('show');
 
     });
@@ -1086,28 +1275,29 @@ $(document).on('change blur', '.applied-amount', function () {
 });
 
 function togglePaymentFields() {
-
-    let method = $('#payment_method').val();
-
-    if (
-        method === 'transferencia' ||
-        method === 'deposito'
-    ) {
-
-        $('#bank_container').show();
-        $('#operation_container').show();
-
-    } else {
-
-        $('#bank_container').hide();
-        $('#operation_container').hide();
-
-        $('#bank_id').val('');
-        $('#operation_number').val('');
-
-    }
+    const method = $('#payment_method').val();
+    const transfer = method === 'transferencia';
+    const reference = ['transferencia', 'deposito', 'yape', 'plin'].includes(method);
+    $('#bank_container').toggle(transfer);
+    $('#origin_bank').prop('required', transfer).prop('disabled', !transfer);
+    $('#operation_container').toggle(reference);
+    $('#operation_number').prop('required', reference).prop('disabled', !reference);
+    if (!transfer) $('#origin_bank, #origin_bank_other').val('');
+    if (!reference) $('#operation_number').val('');
+    const other = transfer && $('#origin_bank').val() === 'Otra entidad';
+    $('#origin_bank_other_container').toggle(other);
+    $('#origin_bank_other').prop('required', other).prop('disabled', !other);
+    if (!other) $('#origin_bank_other').val('');
+    const placeholders = {
+        transferencia: 'Número de operación bancaria',
+        deposito: 'Número de operación o depósito',
+        yape: 'Número de operación Yape',
+        plin: 'Número de operación Plin'
+    };
+    $('#operation_number').attr('placeholder', placeholders[method] || '');
 }
 
+$(document).on('change', '#origin_bank', togglePaymentFields);
 /*
 |--------------------------------------------------------------------------
 | CAMBIO MÉTODO PAGO
@@ -1157,6 +1347,7 @@ $(document).on('click', '.generateInvoice', function () {
     // =========================================
 
     $('#invoiceForm')[0].reset();
+    resetInvoiceMultipleLotsSummary();
 
     $('#company_id').val('');
     $('#company_name').val('');
@@ -1504,6 +1695,72 @@ function loadInvoiceCustomerData(saleId) {
 // CARGAR DESCRIPCIÓN DEL COMPROBANTE
 // =========================================================
 
+function resetInvoiceMultipleLotsSummary() {
+    $('#invoiceMultipleLotsCard')
+        .addClass('d-none')
+        .removeClass('is-expanded');
+    $('#invoiceMultipleLotsMeta').text('—');
+    $('#invoiceMultipleLotsCount').text('0 lotes');
+    $('#invoiceMultipleLotsList').empty();
+    $('#invoiceToggleLots')
+        .addClass('d-none')
+        .data('lot-count', 0)
+        .text('Ver todos');
+}
+
+function renderInvoiceMultipleLotsSummary(summary) {
+    resetInvoiceMultipleLotsSummary();
+
+    if (!summary || !summary.is_multiple) {
+        return;
+    }
+
+    const lots = Array.isArray(summary.lots) ? summary.lots : [];
+    const lotCount = parseInt(summary.lot_count, 10) || lots.length;
+    const saleCode = summary.sale_code || 'Venta múltiple';
+    const projectName = summary.project_name || 'Proyecto';
+    const $list = $('#invoiceMultipleLotsList');
+
+    $('#invoiceMultipleLotsMeta').text(`${saleCode} · ${projectName}`);
+    $('#invoiceMultipleLotsCount').text(`${lotCount} lotes`);
+
+    lots.forEach(function (lot, index) {
+        const $chip = $('<span>', {
+            class: 'invoice-lot-chip' + (index >= 6 ? ' is-extra' : '')
+        });
+
+        $chip.append(
+            $('<strong>').text(lot.label || 'Lote')
+        );
+
+        if (lot.code) {
+            $chip.append(
+                $('<small>').text(lot.code)
+            );
+        }
+
+        $list.append($chip);
+    });
+
+    if (lots.length > 6) {
+        $('#invoiceToggleLots')
+            .removeClass('d-none')
+            .data('lot-count', lotCount)
+            .text(`Ver todos (${lotCount})`);
+    }
+
+    $('#invoiceMultipleLotsCard').removeClass('d-none');
+}
+
+$(document).on('click', '#invoiceToggleLots', function () {
+    const $card = $('#invoiceMultipleLotsCard');
+    const expanded = !$card.hasClass('is-expanded');
+    const lotCount = parseInt($(this).data('lot-count'), 10) || 0;
+
+    $card.toggleClass('is-expanded', expanded);
+    $(this).text(expanded ? 'Mostrar menos' : `Ver todos (${lotCount})`);
+});
+
 function loadInvoiceDescription(paymentId) {
 
     const url = window.routes.invoicePaymentDescription
@@ -1525,12 +1782,17 @@ function loadInvoiceDescription(paymentId) {
                 response.data.legend || ''
             );
 
+            renderInvoiceMultipleLotsSummary(
+                response.data.sale_lot_summary
+            );
+
         },
 
         error: function () {
 
             $('#description').val('');
             $('#legend').val('');
+            resetInvoiceMultipleLotsSummary();
 
         }
 
@@ -1700,6 +1962,7 @@ $('#generateInvoiceModal').on('hidden.bs.modal', function () {
     $('#number').val('');
     $('#description').val('');
     $('#legend').val('');
+    resetInvoiceMultipleLotsSummary();
 
     $('#subtotal_preview').text('S/ 0.00');
     $('#igv_preview').text('S/ 0.00');

@@ -46,7 +46,7 @@
 
                 <div class="sale-detail-section mb-3">
                     <div class="sale-detail-section-title">
-                        <i class="fas fa-map-marked-alt mr-2"></i>Ubicación e identificación del lote
+                        <i class="fas fa-map-marked-alt mr-2"></i><span id="vs_location_title">Ubicación e identificación del lote</span>
                     </div>
 
                     <div class="row">
@@ -82,6 +82,11 @@
                             </div>
                         </div>
                     </div>
+
+                    <div id="vs_lots_multiple_wrapper" class="mt-2 d-none">
+                        <small class="sale-detail-label mb-2">Lotes incluidos en esta venta</small>
+                        <div id="vs_lots_multiple" class="sale-multi-lots-grid"></div>
+                    </div>
                 </div>
 
                 <div class="sale-detail-section mb-3">
@@ -92,7 +97,7 @@
                     <div class="row">
                         <div class="col-md-4 mb-2">
                             <div class="sale-money-card sale-money-primary">
-                                <span>Precio del lote</span>
+                                <span id="vs_precio_label">Precio del lote</span>
                                 <strong id="vs_precio_lote">S/ 0.00</strong>
                             </div>
                         </div>
@@ -340,6 +345,34 @@
         display: block;
         font-size: 12px;
         color: #34495e;
+    }
+
+
+    #viewSaleModal .sale-multi-lots-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 8px;
+    }
+
+    #viewSaleModal .sale-multi-lot-chip {
+        padding: 9px 10px;
+        border: 1px solid #e6ebf0;
+        border-radius: 10px;
+        background: #f9fbf8;
+    }
+
+    #viewSaleModal .sale-multi-lot-chip strong {
+        display: block;
+        color: #344236;
+        font-size: 12px;
+        line-height: 1.25;
+    }
+
+    #viewSaleModal .sale-multi-lot-chip span {
+        display: block;
+        margin-top: 3px;
+        color: #879087;
+        font-size: 10px;
     }
 
     @media (max-width: 767.98px) {

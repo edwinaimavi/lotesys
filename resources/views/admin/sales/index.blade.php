@@ -21,7 +21,14 @@
                 </small>
             </div>
 
-            <div>
+            <div class="d-flex flex-wrap align-items-center">
+                <button class="btn btn-outline-success shadow-sm px-3 mr-2 mb-2 mb-md-0" type="button"
+                    data-toggle="modal" data-target="#multiSaleModal">
+
+                    <i class="fas fa-layer-group mr-1"></i>
+                    Venta de varios lotes
+                </button>
+
                 <button class="btn btn-primary shadow-sm px-4" type="button" data-toggle="modal" data-target="#saleModal">
 
                     <i class="fas fa-plus-circle mr-1"></i>
@@ -144,6 +151,8 @@
     {{-- MODALS --}}
     @include('admin.sales.partials.modal')
 
+    @include('admin.sales.partials.multipleModal')
+
     @include('admin.sales.partials.viewModal')
 
     @include('admin.sales.partials.paymentScheduleModal')
@@ -198,6 +207,8 @@
             saleList: "{{ route('admin.sales.list') }}",
 
             storeSale: "{{ route('admin.sales.store') }}",
+
+            storeMultipleSale: "{{ route('admin.sales.store.multiple') }}",
 
             deleteSale: "{{ url('admin/sales') }}",
 
