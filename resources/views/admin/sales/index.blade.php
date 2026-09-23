@@ -149,6 +149,7 @@
     </div>
 
     {{-- MODALS --}}
+    @include('admin.sales.partials.contractModal')
     @include('admin.sales.partials.modal')
 
     @include('admin.sales.partials.multipleModal')

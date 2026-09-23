@@ -317,6 +317,16 @@
 
                                 <!-- FILA 4 -->
                                 <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="gender" class="small font-weight-bold text-secondary">GÉNERO</label>
+                                        <select name="gender" id="gender" class="form-control form-control-sm">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="masculino">Masculino</option>
+                                            <option value="femenino">Femenino</option>
+                                            <option value="no_especificado">No especificado</option>
+                                        </select>
+                                        <div class="invalid-feedback" id="gender-error"></div>
+                                    </div>
 
                                     <div class="form-group col-md-6">
 

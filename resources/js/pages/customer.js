@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded", function () {
         $('#customerForm').attr('data-id', $btn.data('id'));
 
         $('#first_name').val($btn.data('first_name'));
+        $('#gender').val($btn.attr('data-gender') || '');
         $('#last_name').val($btn.data('last_name'));
         $('#document_type').val($btn.data('document_type'));
         $('#document_number').val($btn.data('document_number'));
@@ -187,6 +188,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 : (btn.data('first_name') + ' ' + btn.data('last_name'));
 
         $('#vc_id').text(btn.data('id') || '—');
+        $('#vc_gender').text({ masculino: 'Masculino', femenino: 'Femenino', no_especificado: 'No especificado' }[btn.attr('data-gender')] || '—');
 
         $('#vc_full_name').text(fullName || '—');
 

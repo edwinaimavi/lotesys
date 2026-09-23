@@ -53,6 +53,7 @@ class CustomerController extends Controller
 
             data-id="' . $customer->id . '"
             data-person_type="' . e($customer->person_type) . '"
+            data-gender="' . e($customer->gender) . '"
             data-first_name="' . e($customer->first_name) . '"
             data-last_name="' . e($customer->last_name) . '"
             data-business_name="' . e($customer->business_name) . '"
@@ -86,6 +87,7 @@ class CustomerController extends Controller
 
             data-id="' . $customer->id . '"
             data-person_type="' . e($customer->person_type) . '"
+            data-gender="' . e($customer->gender) . '"
             data-first_name="' . e($customer->first_name) . '"
             data-last_name="' . e($customer->last_name) . '"
             data-business_name="' . e($customer->business_name) . '"
@@ -131,6 +133,7 @@ data-ubigeo="' . e($customer->ubigeo) . '"
     {
         $data = $request->validate([
             'person_type' => 'required|in:natural,juridica',
+            'gender' => 'nullable|string|in:masculino,femenino,no_especificado',
             'document_type' => 'required|in:DNI,CE,RUC',
             'document_number' => 'required|string|max:20',
 
@@ -146,7 +149,7 @@ data-ubigeo="' . e($customer->ubigeo) . '"
             'district'   => 'nullable|string|max:100',
             'ubigeo'     => 'nullable|string|max:10',
             'status' => 'nullable|boolean',
-        ]);
+        ], ['gender.in' => 'Seleccione un género válido.', 'gender.string' => 'Seleccione un género válido.']);
 
         // 🔥 LOGICA CLAVE
         if ($request->document_type === 'RUC') {
@@ -223,6 +226,7 @@ data-ubigeo="' . e($customer->ubigeo) . '"
     {
         $data = $request->validate([
             'person_type' => 'required|in:natural,juridica',
+            'gender' => 'nullable|string|in:masculino,femenino,no_especificado',
             'document_type' => 'required|in:DNI,CE,RUC',
             'document_number' => 'required|string|max:20',
 
@@ -240,7 +244,7 @@ data-ubigeo="' . e($customer->ubigeo) . '"
             'district'   => 'nullable|string|max:100',
             'ubigeo'     => 'nullable|string|max:10',
             'status' => 'nullable|boolean',
-        ]);
+        ], ['gender.in' => 'Seleccione un género válido.', 'gender.string' => 'Seleccione un género válido.']);
 
         if ($data['document_type'] === 'RUC') {
 

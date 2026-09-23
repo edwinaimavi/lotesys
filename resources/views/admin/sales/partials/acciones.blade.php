@@ -36,6 +36,14 @@
 @endphp
 
 <div class="btn-group shadow-sm" role="group" aria-label="Actions">
+    @if ($sale->exists)
+        <button type="button" class="btn btn-outline-primary btn-sm generateSaleContract" data-toggle="tooltip"
+            title="Generar contrato"
+            data-contract-data="{{ route('admin.sales.contract.data', $sale) }}"
+            data-contract-generate="{{ route('admin.sales.contract.generate', $sale) }}">
+            <i class="fas fa-file-word"></i> Contrato
+        </button>
+    @endif
 
     {{-- VIEW --}}
     <button type="button" class="btn btn-outline-info btn-sm viewSale" data-toggle="tooltip" title="Ver Venta"

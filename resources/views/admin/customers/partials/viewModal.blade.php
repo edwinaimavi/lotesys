@@ -124,6 +124,8 @@
                                             <div id="vc_person_type" class="font-weight-600">
                                                 —
                                             </div>
+                                            <small class="text-muted d-block mt-2">Género</small>
+                                            <div id="vc_gender" class="font-weight-600">—</div>
 
                                         </div>
 

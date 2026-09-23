@@ -117,6 +117,11 @@ Route::resource('customers', CustomerController::class)->except(['create', 'show
 
 
 // RUTAS PARA VENTAS
+Route::get('sales/{sale}/contract-data', [\App\Http\Controllers\Admin\SaleContractController::class, 'data'])
+    ->middleware('can:admin.sales.index')->name('sales.contract.data');
+Route::post('sales/{sale}/contract-generate', [\App\Http\Controllers\Admin\SaleContractController::class, 'generate'])
+    ->middleware('can:admin.sales.index')->name('sales.contract.generate');
+
 Route::get('sales/list', [SaleController::class, 'list'])
     ->name('sales.list');
 

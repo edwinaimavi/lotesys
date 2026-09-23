@@ -16,6 +16,8 @@ $(function () {
     $('[data-toggle="tooltip"]').tooltip();
 });
 
+import './sale-contract';
+
 document.addEventListener("DOMContentLoaded", function () {
 
     // =========================================================
