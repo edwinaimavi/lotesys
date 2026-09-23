@@ -58,7 +58,8 @@ $add('Fechas y referencias', '', '', [
     'sale_date_year' => 'Año de firma', 'last_installment_due_date' => 'Último vencimiento / gastos de trámite',
     'installment_clause_numerals' => 'Numerales de cuotas de la cláusula tercera',
 ]);
-for ($i = 1; $i <= 36; $i++) {
+$scheduleSlots = 49;
+for ($i = 1; $i <= $scheduleSlots; $i++) {
     $n = sprintf('%02d', $i);
     $add('Cuota '.$n, 'schedule_'.$n.'_', 'schedules.'.($i - 1), [
         'installment_number' => 'Número de cuota', 'installment_amount' => 'Importe',
@@ -79,6 +80,7 @@ foreach (['sale_date', 'first_payment_date', 'last_installment_due_date'] as $ke
 $fields['gender']['type'] = 'gender';
 
 return [
+    'schedule_slots' => $scheduleSlots,
     'templates' => [
         'farje' => [
             'ruc' => '20610686665',
@@ -122,7 +124,9 @@ return [
             'name' => 'Grupo Krea',
             'filename_suffix' => 'Grupo_Krea',
             'path' => 'app/private/contracts/templates/grupo-krea/contrato_compra_venta_lote_grupo_krea_parametrizado.docx',
-            'max_installments' => 36,
+            'max_installments' => 49,
+            'max_bills' => 49,
+            'installment_limit_message' => 'La plantilla de Grupo Krea admite hasta 49 cuotas. Revise el contrato o la plantilla.',
             'defaults' => [
                 'representative_name' => 'KENNY JOSUE FARJE PULACHE',
                 'representative_document' => '74723182',

@@ -38,7 +38,7 @@ class SaleContractService
         $schedules = $sale->paymentSchedules()->where('schedule_type', 'cuota')->orderBy('installment_number')->orderBy('id')->get();
         $limit = min($template['max_installments'], $template['max_bills'] ?? $template['max_installments']);
         if ($schedules->count() > $limit) {
-            $this->fail($template['installment_limit_message'] ?? 'Esta plantilla de Grupo Krea admite hasta 36 cuotas. Revise el contrato o la plantilla.');
+            $this->fail($template['installment_limit_message'] ?? 'La plantilla de '.$template['name'].' admite hasta '.$limit.' cuotas. Revise el contrato o la plantilla.');
         }
         $processor = new TemplateProcessor($path);
         $variables = array_values(array_unique($processor->getVariables()));
@@ -154,7 +154,7 @@ class SaleContractService
             $set('sale_date_'.$suffix, $date?->format($format) ?? '');
         }
         $set('sale_date_month_name', $date?->locale('es')->translatedFormat('F') ?? '');
-        for ($i = 1; $i <= 36; $i++) {
+        for ($i = 1; $i <= config('contracts.schedule_slots'); $i++) {
             $n = sprintf('%02d', $i);
             $s = 'schedule_'.$n.'_';
             $b = 'bill_'.$n.'_';

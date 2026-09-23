@@ -431,16 +431,65 @@ class SaleContractTest extends TestCase
         $this->assertSame('2026-09-05', $data['values']['schedule_01_due_date']);
         $this->assertSame('', $data['values']['schedule_03_installment_amount']);
         $this->assertSame('', $data['values']['bill_36_number']);
+        foreach (['schedule_49_installment_amount', 'schedule_49_installment_amount_words', 'schedule_49_due_date', 'bill_49_amount', 'bill_49_amount_words', 'bill_49_number'] as $key) {
+            $this->assertSame('', $data['values'][$key]);
+        }
         $this->assertSame('01', $data['values']['bill_01_number']);
     }
 
-    public function test_more_than_36_quotas_is_rejected_on_both_endpoints(): void
+    public function test_krea_49_quotas_fill_the_last_slot_and_generate_without_pending_placeholders(): void
+    {
+        Schema::table('payment_schedules', function (Blueprint $table) {
+            $table->unsignedInteger('installment_number')->nullable()->change();
+        });
+        $sale = $this->sale();
+        for ($i = 49; $i >= 1; $i--) $this->quota($sale, $i, $i === 49 ? '9876.54' : '712.34');
+        $sale->paymentSchedules()->where('installment_number', 49)->update(['due_date' => '2030-09-19']);
+        $data = $this->data($sale);
+        $this->assertSame(49, $data['template']['max_installments']);
+        $this->assertSame(49, $data['template']['max_bills']);
+        $this->assertSame(49, $data['schedule_count']);
+        foreach ([
+            'schedule_49_installment_amount' => '9876.54', 'schedule_49_due_date' => '2030-09-19',
+            'bill_49_amount' => '9876.54', 'bill_49_number' => '49',
+            'last_installment_due_date' => '2030-09-19',
+            'installment_clause_numerals' => implode(', ', range(2, 50)),
+        ] as $key => $expected) $this->assertSame($expected, $data['values'][$key]);
+        $words = app(AmountToWordsService::class)->convert('9876.54');
+        $this->assertSame($words, $data['values']['schedule_49_installment_amount_words']);
+        $this->assertSame($words, $data['values']['bill_49_amount_words']);
+        $this->authorizeUser();
+        $response = $this->postJson('/admin/sales/'.$sale->id.'/contract-generate', ['values' => $data['values']])->assertOk();
+        $response->assertDownload('Contrato_VTA00001_01099395_Grupo_Krea.docx');
+        $path = $response->baseResponse->getFile()->getPathname();
+        $this->temporaryFiles[] = $path;
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($path, ZipArchive::CHECKCONS));
+        try {
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $entry = $zip->getNameIndex($i);
+                if (!str_ends_with($entry, '.xml')) continue;
+                $doc = new \DOMDocument;
+                $this->assertTrue($doc->loadXML($zip->getFromName($entry)), $entry);
+                $this->assertStringNotContainsString('${', $doc->textContent, $entry);
+                if ($entry === 'word/document.xml') {
+                    foreach (['9,876.54', '19/09/2030', 'Letra N°49', $words] as $text) {
+                        $this->assertStringContainsString($text, $doc->textContent);
+                    }
+                }
+            }
+        } finally {
+            $zip->close();
+        }
+    }
+
+    public function test_more_than_49_krea_quotas_is_rejected_on_both_endpoints(): void
     {
         $sale = $this->sale();
-        for ($i = 1; $i <= 37; $i++) $this->quota($sale, $i);
+        for ($i = 1; $i <= 50; $i++) $this->quota($sale, $i);
         $this->authorizeUser();
         foreach (['getJson' => 'contract-data', 'postJson' => 'contract-generate'] as $method => $endpoint) {
-            $this->$method('/admin/sales/'.$sale->id.'/'.$endpoint)->assertUnprocessable()->assertJsonPath('errors.contract.0', 'Esta plantilla de Grupo Krea admite hasta 36 cuotas. Revise el contrato o la plantilla.');
+            $this->$method('/admin/sales/'.$sale->id.'/'.$endpoint)->assertUnprocessable()->assertJsonPath('errors.contract.0', 'La plantilla de Grupo Krea admite hasta 49 cuotas. Revise el contrato o la plantilla.');
         }
     }
 
