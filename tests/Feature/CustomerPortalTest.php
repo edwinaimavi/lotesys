@@ -186,14 +186,14 @@ class CustomerPortalTest extends TestCase
     public function test_initializer_is_idempotent_and_skips_ineligible_and_duplicate_dnis(): void
     {
         DB::table('customers')->insert(['id' => 3, 'document_type' => 'DNI', 'document_number' => '87654321', 'status' => 1]);
-        $this->artisan('portal:initialize-customers')->assertSuccessful();
+        $this->artisan('portal:initialize-customers')->expectsOutput('Cuentas creadas: 1. Las cuentas existentes permanecen intactas.')->assertSuccessful();
         $this->assertSame(1, CustomerPortalAccount::count());
         $account = CustomerPortalAccount::first();
         $this->assertTrue($account->must_change_password);
         $this->assertTrue(Hash::check('12345678', $account->password));
         $account->update(['password' => Hash::make('Personal123!'), 'must_change_password' => false]);
         $hash = $account->password;
-        $this->artisan('portal:initialize-customers')->assertSuccessful();
+        $this->artisan('portal:initialize-customers')->expectsOutput('Cuentas creadas: 0. Las cuentas existentes permanecen intactas.')->assertSuccessful();
         $this->assertSame($hash, $account->fresh()->password);
     }
 
@@ -243,4 +243,137 @@ class CustomerPortalTest extends TestCase
         $this->postJson('/portal-cliente/logout', ['_token' => $changed->json('csrf_token')])->assertOk();
         $this->getJson('/portal-cliente/session')->assertUnauthorized();
     }
+    public function test_provisioner_creates_hashed_temporary_account_and_is_idempotent(): void
+    {
+        DB::table('customers')->where('id', 1)->update(['document_number' => ' 12345678 ']);
+        $service = app(\App\Services\CustomerPortalAccountProvisioner::class);
+        $customer = \App\Models\Customer::findOrFail(1);
+        $account = $service->ensureForCustomer($customer);
+        $this->assertTrue(Hash::check('12345678', $account->password));
+        $this->assertTrue($account->must_change_password);
+        $this->assertTrue($account->is_active);
+        $this->assertSame($account->id, $service->ensureForCustomer($customer)->id);
+        $account->update(['password' => Hash::make('Personal123!'), 'must_change_password' => false, 'is_active' => false, 'last_login_at' => '2026-01-02 03:04:05']);
+        $before = $account->fresh()->getRawOriginal();
+        Hash::shouldReceive('make')->never();
+        $service->ensureForCustomer($customer);
+        $this->assertSame($before, $account->fresh()->getRawOriginal());
+        $this->assertSame(1, CustomerPortalAccount::count());
+    }
+
+    public function test_provisioner_requires_eligible_sale_and_accepts_finalized_sale(): void
+    {
+        $service = app(\App\Services\CustomerPortalAccountProvisioner::class);
+        $customer = \App\Models\Customer::findOrFail(1);
+        foreach (['cancelado', 'rescindido'] as $status) {
+            DB::table('sales')->where('id', 1)->update(['status' => $status]);
+            $this->assertNull($service->ensureForCustomer($customer));
+        }
+        DB::table('sales')->where('id', 1)->delete();
+        $this->assertNull($service->ensureForCustomer($customer));
+        DB::table('sales')->insert(['customer_id' => 1, 'status' => 'finalizado']);
+        $this->assertNotNull($service->ensureForCustomer($customer));
+    }
+
+    public function test_provisioner_rejects_inactive_invalid_and_duplicate_documents(): void
+    {
+        $service = app(\App\Services\CustomerPortalAccountProvisioner::class);
+        foreach ([['status' => 0], ['document_type' => 'CE'], ['document_type' => 'RUC'], ['document_number' => '1234567'], ['document_number' => '123456789'], ['document_number' => '1234567A']] as $attributes) {
+            DB::table('customers')->where('id', 1)->update(array_merge(['status' => 1, 'document_type' => 'DNI', 'document_number' => '12345678'], $attributes));
+            $this->assertNull($service->ensureForCustomer(\App\Models\Customer::findOrFail(1)));
+        }
+        DB::table('customers')->where('id', 1)->update(['document_number' => '12345678']);
+        DB::table('customers')->insert(['document_type' => 'DNI', 'document_number' => ' 12345678 ', 'status' => 0]);
+        $this->assertNull($service->ensureForCustomer(\App\Models\Customer::findOrFail(1)));
+        $this->assertSame(0, CustomerPortalAccount::count());
+    }
+
+    private function preparePortalSaleFlow(): array
+    {
+        Schema::table('sales', function (Blueprint $table) {
+            foreach (['sale_type', 'initial_payment', 'balance_finance', 'installments_count', 'payment_mode', 'custom_payment', 'monthly_payment', 'interest_rate', 'first_payment_date', 'payment_day', 'legacy_observation', 'created_by', 'updated_by'] as $column) { $table->string($column)->nullable(); }
+        });
+        Schema::table('payment_schedules', function (Blueprint $table) {
+            foreach (['schedule_type', 'installment_amount', 'capital', 'interest', 'created_by', 'updated_by'] as $column) { $table->string($column)->nullable(); }
+        });
+        Schema::table('lots', function (Blueprint $table) {
+            foreach (['status', 'cash_price', 'financed_price'] as $column) { $table->string($column)->nullable(); }
+        });
+        Schema::table('projects', fn (Blueprint $table) => $table->unsignedBigInteger('company_id')->nullable());
+        Schema::create('companies', function (Blueprint $table) { $table->id(); $table->string('business_name')->nullable(); });
+        DB::table('sales')->delete();
+        DB::table('lots')->update(['project_id' => 1, 'status' => 'disponible', 'cash_price' => 1000, 'financed_price' => 1000]);
+        return ['sale_code' => 'PORTAL-TEST', 'customer_id' => 1, 'lot_id' => 1, 'lot_ids' => [1, 2], 'sale_type' => 'contado', 'sale_date' => '2026-01-01', 'lot_price' => 1000, 'initial_payment' => 0, 'balance_finance' => 1000, 'installments_count' => 1, 'payment_mode' => 'automatico', 'monthly_payment' => 1000, 'status' => 'activo'];
+    }
+
+    private function portalSaleRequest(array $data): \Illuminate\Http\Request
+    {
+        return \Illuminate\Http\Request::create('/admin/sales', 'POST', $data);
+    }
+
+    public function test_simple_sale_provisions_and_second_sale_preserves_account(): void
+    {
+        $data = $this->preparePortalSaleFlow();
+        $controller = app(\App\Http\Controllers\Admin\SaleController::class);
+        $service = app(\App\Services\CustomerPortalAccountProvisioner::class);
+        $response = $controller->store($this->portalSaleRequest($data), $service);
+        $this->assertSame(201, $response->getStatusCode(), $response->getContent());
+        $account = CustomerPortalAccount::firstOrFail();
+        $account->update(['password' => Hash::make('Personal123!'), 'must_change_password' => false]);
+        $before = $account->fresh()->getRawOriginal();
+        $data['sale_code'] = 'PORTAL-SECOND';
+        $data['lot_id'] = 2;
+        $this->assertSame(201, $controller->store($this->portalSaleRequest($data), $service)->getStatusCode());
+        $this->assertSame($before, $account->fresh()->getRawOriginal());
+        $this->assertSame(1, CustomerPortalAccount::count());
+    }
+
+    public function test_multiple_sale_provisions_account(): void
+    {
+        $data = $this->preparePortalSaleFlow();
+        $response = app(\App\Http\Controllers\Admin\SaleController::class)->storeMultiple($this->portalSaleRequest($data), app(\App\Services\CustomerPortalAccountProvisioner::class));
+        $this->assertSame(201, $response->getStatusCode(), $response->getContent());
+        $this->assertTrue(Hash::check('12345678', CustomerPortalAccount::firstOrFail()->password));
+        $this->assertSame(2, DB::table('sale_lots')->count());
+    }
+
+    public function test_sale_update_provisions_after_status_and_customer_changes(): void
+    {
+        $data = $this->preparePortalSaleFlow();
+        $controller = app(\App\Http\Controllers\Admin\SaleController::class);
+        $service = app(\App\Services\CustomerPortalAccountProvisioner::class);
+        $data['status'] = 'cancelado';
+        $response = $controller->store($this->portalSaleRequest($data), $service);
+        $this->assertSame(201, $response->getStatusCode(), $response->getContent());
+        $this->assertSame(0, CustomerPortalAccount::count());
+        $id = $response->getData()->data->id;
+        $data['status'] = 'activo';
+        $response = $controller->update($this->portalSaleRequest($data), $id, $service);
+        $this->assertSame(200, $response->getStatusCode(), $response->getContent());
+        $this->assertSame(1, CustomerPortalAccount::count());
+        $data['customer_id'] = 2;
+        $data['status'] = 'finalizado';
+        $response = $controller->update($this->portalSaleRequest($data), $id, $service);
+        $this->assertSame(200, $response->getStatusCode(), $response->getContent());
+        $this->assertTrue(Hash::check('87654321', CustomerPortalAccount::where('customer_id', 2)->firstOrFail()->password));
+    }
+
+    public function test_sale_and_account_roll_back_together_if_provisioning_fails(): void
+    {
+        $data = $this->preparePortalSaleFlow();
+        $service = new class extends \App\Services\CustomerPortalAccountProvisioner {
+            public function ensureForCustomer(\App\Models\Customer $customer): ?CustomerPortalAccount
+            {
+                if (DB::transactionLevel() < 1) { throw new \RuntimeException('Missing transaction'); }
+                parent::ensureForCustomer($customer);
+                throw new \RuntimeException('Provisioning failed');
+            }
+        };
+        $response = app(\App\Http\Controllers\Admin\SaleController::class)->store($this->portalSaleRequest($data), $service);
+        $this->assertSame(500, $response->getStatusCode());
+        $this->assertSame(0, CustomerPortalAccount::count());
+        $this->assertSame(0, DB::table('sales')->count());
+        $this->assertSame('disponible', DB::table('lots')->where('id', 1)->value('status'));
+    }
+
 }

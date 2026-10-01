@@ -8,6 +8,7 @@ use App\Models\LateFeeSetting;
 use App\Models\Lot;
 use App\Models\Sale;
 use App\Models\SaleLot;
+use App\Services\CustomerPortalAccountProvisioner;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
@@ -290,7 +291,7 @@ class SaleController extends Controller
     /**
      * STORE
      */
-    public function store(Request $request)
+    public function store(Request $request, CustomerPortalAccountProvisioner $provisioner)
     {
         $data = $request->validate([
 
@@ -484,6 +485,8 @@ class SaleController extends Controller
                 $lot->save();
             }
 
+            $provisioner->ensureForCustomer($sale->customer);
+
             DB::commit();
 
             return response()->json([
@@ -522,7 +525,7 @@ class SaleController extends Controller
      * sales.lot_id se conserva como lote principal para mantener
      * compatibilidad con los módulos que todavía trabajan con un lote.
      */
-    public function storeMultiple(Request $request)
+    public function storeMultiple(Request $request, CustomerPortalAccountProvisioner $provisioner)
     {
         $data = $request->validate([
             'sale_code' => [
@@ -805,6 +808,8 @@ class SaleController extends Controller
                 $lot->save();
             }
 
+            $provisioner->ensureForCustomer($sale->customer);
+
             DB::commit();
 
             return response()->json([
@@ -863,7 +868,7 @@ class SaleController extends Controller
     /**
      * UPDATE
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, CustomerPortalAccountProvisioner $provisioner)
     {
         $sale = Sale::find($id);
 
@@ -1103,6 +1108,8 @@ class SaleController extends Controller
                     $oldLot->save();
                 }
             }
+
+            $provisioner->ensureForCustomer($sale->customer);
 
             DB::commit();
 
