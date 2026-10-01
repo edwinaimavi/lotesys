@@ -17,7 +17,7 @@ class LandingController extends Controller
 {
     public function __construct(private \App\Services\LandingContacts $contacts) {}
 
-    private const RESULT_LIMIT = 24;
+    private const RESULT_LIMIT = 3;
 
     public function index(): View
     {
@@ -339,48 +339,9 @@ class LandingController extends Controller
 
     public function searchLots(Request $request): JsonResponse
     {
-        $filters = $request->validate([
-            'location' => ['nullable', 'string', 'max:150'],
-            'project_id' => ['nullable', 'integer', Rule::exists('projects', 'id')],
-            'min_price' => ['nullable', 'numeric', 'min:0'],
-            'max_price' => [
-                'nullable',
-                'numeric',
-                'min:0',
-                Rule::when($request->filled('min_price'), ['gte:min_price']),
-            ],
-        ], [
-            'project_id.integer' => 'El proyecto seleccionado no es válido.',
-            'project_id.exists' => 'El proyecto seleccionado no existe.',
-            'min_price.numeric' => 'El presupuesto mínimo no es válido.',
-            'max_price.numeric' => 'El presupuesto máximo no es válido.',
-            'max_price.gte' => 'El presupuesto máximo no puede ser menor que el mínimo.',
-        ]);
+        $filters = $this->validateLotSearchFilters($request);
 
-        $query = $this->applyAvailabilityFilters($this->availableLotsQuery(), $filters)
-            ->select([
-                'id',
-                'project_id',
-                'block_id',
-                'code',
-                'number',
-                'area',
-                'unit_measure',
-                'cash_price',
-                'status',
-            ])
-            ->with([
-                'project:id,name,district,province,department',
-                'block:id,project_id,name',
-            ]);
-
-        if (isset($filters['min_price'])) {
-            $query->where('cash_price', '>=', $filters['min_price']);
-        }
-
-        if (isset($filters['max_price'])) {
-            $query->where('cash_price', '<=', $filters['max_price']);
-        }
+        $query = $this->lotSearchQuery($filters);
 
         $total = (clone $query)->count();
         $lots = $query
@@ -411,6 +372,79 @@ class LandingController extends Controller
                 'limit' => self::RESULT_LIMIT,
             ],
         ]);
+    }
+
+    private function validateLotSearchFilters(Request $request): array
+    {
+        return $request->validate([
+            'location' => ['nullable', 'string', 'max:150'],
+            'project_id' => ['nullable', 'integer', Rule::exists('projects', 'id')],
+            'min_price' => ['nullable', 'numeric', 'min:0'],
+            'max_price' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                Rule::when($request->filled('min_price'), ['gte:min_price']),
+            ],
+        ], [
+            'project_id.integer' => 'El proyecto seleccionado no es válido.',
+            'project_id.exists' => 'El proyecto seleccionado no existe.',
+            'min_price.numeric' => 'El presupuesto mínimo no es válido.',
+            'max_price.numeric' => 'El presupuesto máximo no es válido.',
+            'max_price.gte' => 'El presupuesto máximo no puede ser menor que el mínimo.',
+        ]);
+    }
+
+    private function lotSearchQuery(array $filters): Builder
+    {
+        $query = $this->applyAvailabilityFilters($this->availableLotsQuery(), $filters)
+            ->select([
+                'id',
+                'project_id',
+                'block_id',
+                'code',
+                'number',
+                'area',
+                'unit_measure',
+                'cash_price',
+                'status',
+            ])
+            ->with([
+                'project:id,name,district,province,department',
+                'block:id,project_id,name',
+            ]);
+
+        if (isset($filters['min_price'])) {
+            $query->where('cash_price', '>=', $filters['min_price']);
+        }
+
+        if (isset($filters['max_price'])) {
+            $query->where('cash_price', '<=', $filters['max_price']);
+        }
+
+        return $query;
+    }
+
+    public function lots(Request $request): View
+    {
+        $filters = $this->validateLotSearchFilters($request);
+        $request->validate(['page' => ['nullable', 'integer', 'min:1']]);
+        $primaryWhatsapp = $this->contacts->whatsapp();
+        $selectedProject = ! empty($filters['project_id'])
+            ? Project::select(['id', 'name'])->find($filters['project_id'])
+            : null;
+        $lots = $this->lotSearchQuery($filters)
+            ->orderBy('project_id')
+            ->orderBy('block_id')
+            ->orderBy('number')
+            ->paginate(12)
+            ->withQueryString();
+        $lots->setCollection($lots->getCollection()->map(fn (Lot $lot) => array_merge(
+            $this->publicLotPayload($lot, $lot->project),
+            ['project' => $lot->project->name, 'location' => $this->projectSearchLocation($lot->project)]
+        )));
+
+        return view('lots', compact('lots', 'filters', 'selectedProject', 'primaryWhatsapp'));
     }
 
     public function priceRanges(Request $request): JsonResponse

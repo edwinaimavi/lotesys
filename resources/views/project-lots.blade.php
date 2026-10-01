@@ -85,39 +85,11 @@
             @if($lots->count())
                 <div class="inventory-grid">
                     @foreach($lots as $lot)
-                        @php
-                            $unit = ($lot['unit_measure'] ?? null) === 'm2' ? 'm²' : (($lot['unit_measure'] ?? null) ?: 'm²');
-                            $blockLabel = trim((string)($lot['block'] ?? ''));
-                            $blockLabel = preg_match('/^mz\b/i', $blockLabel) ? preg_replace('/^mz\b/i', 'MANZANA', $blockLabel) : (preg_match('/^manzana\b/i', $blockLabel) ? mb_strtoupper($blockLabel) : 'MANZANA '.$blockLabel);
-                        @endphp
-                        <article class="inventory-lot-card">
-                            <div class="inventory-lot-top"><span>{{ $blockLabel }}</span><span class="inventory-lot-status"><i></i>Disponible</span></div>
-                            <h3>Lote {{ $lot['lot_number'] }}</h3>
-                            @if(!empty($lot['code']))<span class="inventory-lot-code">{{ $lot['code'] }}</span>@endif
-                            <dl class="inventory-lot-facts">
-                                <div><dt>Área</dt><dd>{{ $lot['area'] !== null ? rtrim(rtrim(number_format((float)$lot['area'], 2, '.', ','), '0'), '.').' '.$unit : 'Consultar' }}</dd></div>
-                                <div><dt>Precio contado</dt><dd>{{ $lot['cash_price'] !== null ? 'S/ '.number_format((float)$lot['cash_price'], 2, '.', ',') : 'Consultar' }}</dd></div>
-                            </dl>
-                            @if(!empty($lot['whatsapp_url']))<a class="inventory-lot-contact" href="{{ $lot['whatsapp_url'] }}" target="_blank" rel="noopener noreferrer">Me interesa este lote <span>→</span></a>@endif
-                        </article>
+                        @include('landing.partials.lot-card', ['lot' => $lot])
                     @endforeach
                 </div>
 
-                @if($lots->lastPage() > 1)
-                    @php
-                        $startPage = max(1, $lots->currentPage() - 2);
-                        $endPage = min($lots->lastPage(), $lots->currentPage() + 2);
-                    @endphp
-                    <nav class="inventory-pagination" aria-label="Paginación de lotes">
-                        @if($lots->onFirstPage())<span class="is-disabled">← Anterior</span>@else<a href="{{ $lots->previousPageUrl() }}">← Anterior</a>@endif
-                        <div class="inventory-pages">
-                            @for($page = $startPage; $page <= $endPage; $page++)
-                                @if($page === $lots->currentPage())<span class="is-current" aria-current="page">{{ $page }}</span>@else<a href="{{ $lots->url($page) }}">{{ $page }}</a>@endif
-                            @endfor
-                        </div>
-                        @if($lots->hasMorePages())<a href="{{ $lots->nextPageUrl() }}">Siguiente →</a>@else<span class="is-disabled">Siguiente →</span>@endif
-                    </nav>
-                @endif
+                @include('landing.partials.lot-pagination', ['lots' => $lots])
             @else
                 <div class="inventory-empty">
                     <span class="eyebrow">SIN COINCIDENCIAS</span>

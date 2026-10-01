@@ -133,11 +133,12 @@
         </svg></span><strong>Visión de futuro</strong><span class="benefit-description">Familias e inversionistas</span>
     </article>
 </section>
-<section class="lot-results" id="resultados-lotes" data-whatsapp="{{ $whatsapp }}" hidden aria-labelledby="lot-results-title">
+<section class="lot-results" id="resultados-lotes" data-all-lots-url="{{ route('public.lots.index') }}" data-whatsapp="{{ $whatsapp }}" hidden aria-labelledby="lot-results-title">
     <div class="container">
         <div class="lot-results-heading"><div><span class="eyebrow">OPORTUNIDADES DISPONIBLES</span><h2 id="lot-results-title">Lotes disponibles para ti</h2><p id="lot-results-summary" role="status" aria-live="polite"></p></div><button class="lot-results-clear" id="reset-lot-search" type="button">Limpiar filtros</button></div>
         <div class="lot-results-feedback" id="lot-results-feedback" role="status" aria-live="polite"></div>
         <div class="lot-results-grid" id="lot-results-grid"></div>
+        <div class="project-lot-explorer-more"><a class="button button-outline" id="lot-results-all" hidden>Ver todos los lotes disponibles ?</a></div>
     </div>
 </section>
 <section class="section container" id="proyectos">

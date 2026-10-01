@@ -98,6 +98,12 @@
     const resultsSummary = document.querySelector('#lot-results-summary');
     const resultsFeedback = document.querySelector('#lot-results-feedback');
     const resultsGrid = document.querySelector('#lot-results-grid');
+    const resultsAll = document.querySelector('#lot-results-all');
+    const clearAllResultsLink = () => {
+        resultsAll.hidden = true;
+        resultsAll.removeAttribute('href');
+        resultsAll.textContent = '';
+    };
     const clearSearch = document.querySelector('#reset-lot-search');
     const projectOptions = [...projectSelect.options].slice(1).map(option => ({
         value: option.value,
@@ -108,6 +114,7 @@
     const numberFormatter = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 2 });
     let priceRangesRequest = null;
     let isSearching = false;
+    let searchVersion = 0;
     let loadingPriceRanges = false;
 
     const updateProjectOptions = () => {
@@ -247,7 +254,8 @@
         card.append(top, project, identifier, code, facts, contact);
         return card;
     };
-    const renderLots = result => {
+    const renderLots = (result, parameters) => {
+        clearAllResultsLink();
         const lots = result.data || [];
         const total = result.meta?.total ?? lots.length;
         const shown = result.meta?.shown ?? lots.length;
@@ -259,6 +267,13 @@
         if (!lots.length) {
             showResultMessage('No encontramos lotes disponibles con estos filtros.', 'Prueba cambiando la ubicación, el proyecto o el presupuesto.', true);
             return;
+        }
+        if (total > 3) {
+            const allUrl = new URL(resultsSection.dataset.allLotsUrl, window.location.href);
+            allUrl.search = parameters.toString();
+            resultsAll.href = allUrl.href;
+            resultsAll.textContent = `Ver los ${total} lotes disponibles \u2192`;
+            resultsAll.hidden = false;
         }
         lots.forEach((lot, index) => resultsGrid.append(createLotCard(lot, index)));
         window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
@@ -277,6 +292,8 @@
     });
     projectSelect.addEventListener('change', updatePriceRanges);
     clearSearch.addEventListener('click', () => {
+        clearAllResultsLink();
+        searchVersion++;
         form.reset();
         updateProjectOptions();
         updatePriceRanges();
@@ -288,6 +305,8 @@
     form.addEventListener('submit', async event => {
         event.preventDefault();
         if (searchButton.disabled) return;
+        clearAllResultsLink();
+        const currentSearch = ++searchVersion;
         setSearching(true);
         resultsSection.hidden = false;
         resultsGrid.replaceChildren();
@@ -295,9 +314,8 @@
         showResultMessage('Buscando lotes...', 'Estamos revisando la disponibilidad según tus filtros.');
         try {
             const parameters = new URLSearchParams();
-            new FormData(form).forEach((value, key) => {
-                if (String(value).trim() !== '') parameters.set(key, value);
-            });
+            if (locationSelect.value) parameters.set('location', locationSelect.value);
+            if (projectSelect.value) parameters.set('project_id', projectSelect.value);
             const selectedPrice = priceSelect.selectedOptions[0];
             if (selectedPrice?.dataset.minPrice) parameters.set('min_price', selectedPrice.dataset.minPrice);
             if (selectedPrice?.dataset.maxPrice) parameters.set('max_price', selectedPrice.dataset.maxPrice);
@@ -305,14 +323,16 @@
                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             });
             if (!response.ok) throw new Error('search_failed');
-            renderLots(await response.json());
+            const result = await response.json();
+            if (currentSearch === searchVersion) renderLots(result, parameters);
         } catch (error) {
+            if (currentSearch !== searchVersion) return;
             resultsGrid.replaceChildren();
             resultsSummary.textContent = '';
             showResultMessage('No pudimos consultar la disponibilidad en este momento.', 'Inténtalo nuevamente en unos minutos.');
         } finally {
             setSearching(false);
-            scrollToResults();
+            if (currentSearch === searchVersion) scrollToResults();
         }
     });
     const runProjectLotSearch = async (projectId, location = '') => {

@@ -7,6 +7,7 @@ use App\Livewire\Settings\Profile;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LandingController::class, 'index'])->name('home');
+Route::get('/lotes', [LandingController::class, 'lots'])->name('public.lots.index');
 Route::get('/buscar-lotes', [LandingController::class, 'searchLots'])->name('public.lots.search');
 Route::get('/buscar-lotes/presupuestos', [LandingController::class, 'priceRanges'])->name('public.lots.price-ranges');
 Route::get('/proyectos/{project}/lotes', [LandingController::class, 'projectLots'])->name('public.projects.lots');

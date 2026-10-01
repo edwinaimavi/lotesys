@@ -245,17 +245,17 @@ test('la respuesta contiene solo información comercial', function () {
     ]);
 });
 
-test('limita a 24 resultados y devuelve el total real', function () {
+test('limita a 3 resultados y devuelve el total real', function () {
     foreach (range(1, 30) as $index) {
         createPublicSearchLot(8700 + $index, 8100, str_pad((string) (20 + $index), 2, '0', STR_PAD_LEFT), 35000);
     }
 
     $this->getJson(route('public.lots.search'))
         ->assertOk()
-        ->assertJsonCount(24, 'data')
+        ->assertJsonCount(3, 'data')
         ->assertJsonPath('meta.total', 31)
-        ->assertJsonPath('meta.shown', 24)
-        ->assertJsonPath('meta.limit', 24);
+        ->assertJsonPath('meta.shown', 3)
+        ->assertJsonPath('meta.limit', 3);
 });
 
 test('la página pública carga ubicaciones proyectos y WhatsApp sin datos privados', function () {
@@ -266,4 +266,76 @@ test('la página pública carga ubicaciones proyectos y WhatsApp sin datos priva
         ->assertSee('data-whatsapp="'.config('landing.whatsapp').'"', false)
         ->assertDontSee('customer_id')
         ->assertDontSee('buyer');
+});
+
+test('la página general conserva filtros y pagina doce resultados comerciales', function () {
+    foreach (range(1, 25) as $index) {
+        createPublicSearchLot(8700 + $index, 8100, str_pad((string) (20 + $index), 2, '0', STR_PAD_LEFT), 30000);
+    }
+    $filters = ['location' => 'TARAPOTO', 'project_id' => 8100, 'min_price' => 29000, 'max_price' => 31000];
+    $response = $this->get(route('public.lots.index', $filters))->assertOk()
+        ->assertSee('Lotes disponibles')->assertSee('25 oportunidades encontradas')
+        ->assertSee('Ubicación: TARAPOTO')->assertSee('Proyecto: Bella Terra Pública')
+        ->assertSee('Desde S/ 29,000.00')->assertSee('Hasta S/ 31,000.00')
+        ->assertSee('Me interesa este lote')->assertDontSee('LOT-8300')->assertDontSee('LOT-8301');
+    $lots = $response->viewData('lots');
+    expect($lots->count())->toBe(12)->and($lots->total())->toBe(25)->and($lots->perPage())->toBe(12);
+    parse_str(parse_url($lots->nextPageUrl(), PHP_URL_QUERY), $query);
+    expect($query)->toMatchArray($filters + ['page' => '2']);
+    $second = $this->get($lots->nextPageUrl())->assertOk()->viewData('lots');
+    expect($second->count())->toBe(12)->and($second->currentPage())->toBe(2)
+        ->and(array_intersect($lots->pluck('code')->all(), $second->pluck('code')->all()))->toBe([]);
+    $last = $this->get($second->nextPageUrl())->assertOk()->viewData('lots');
+    expect($last->count())->toBe(1);
+});
+
+test('la página general aplica ubicación proyecto y límites de precio independientes', function () {
+    createPublicSearchProject(8400, 'Palmeras Públicas', 'MORALES');
+    createPublicSearchLot(8600, 8400, '01', 45000);
+    createPublicSearchLot(8601, 8400, '02', 90000);
+    foreach ([['location' => 'MORALES'], ['project_id' => 8400], ['min_price' => 40000], ['max_price' => 50000, 'min_price' => 30000]] as $filters) {
+        $response = $this->get(route('public.lots.index', $filters))->assertOk()->assertDontSee('LOT-8300');
+        expect($response->viewData('lots')->pluck('code')->all())->toContain('LOT-8600');
+    }
+    $this->get(route('public.lots.index', ['location' => 'MORALES', 'project_id' => 8100]))
+        ->assertOk()->assertSee('0 oportunidades encontradas');
+});
+
+test('la página general excluye estados no disponibles y proyectos o manzanas inactivos', function () {
+    foreach (['vendido', 'separado', 'bloqueado'] as $index => $status) {
+        createPublicSearchLot(8700 + $index, 8100, (string)$index, 25000, $status);
+    }
+    createPublicSearchProject(8400, 'Proyecto inactivo', 'TARAPOTO');
+    createPublicSearchLot(8600, 8400, '01', 25000);
+    DB::table('projects')->where('id', 8400)->update(['status' => 0]);
+    createPublicSearchProject(8500, 'Manzana inactiva', 'TARAPOTO');
+    createPublicSearchLot(8601, 8500, '02', 25000);
+    DB::table('blocks')->where('project_id', 8500)->update(['status' => 0]);
+    $response = $this->get(route('public.lots.index'))->assertOk();
+    expect($response->viewData('lots')->pluck('code')->all())->toBe(['LOT-8300']);
+    $this->getJson(route('public.lots.search'))->assertOk()->assertJsonPath('meta.total', 1);
+});
+
+test('la página general usa datos permitidos sin exponer campos internos', function () {
+    DB::table('lots')->where('id', 8300)->update(['observation' => 'SECRETO INTERNO DEL LOTE']);
+    $response = $this->get(route('public.lots.index'))->assertOk();
+    foreach (['customer_id', 'created_by', 'updated_by', 'observation', 'SECRETO INTERNO DEL LOTE'] as $private) {
+        $response->assertDontSee($private);
+    }
+    expect(array_keys($response->viewData('lots')->first()))->toBe([
+        'id', 'code', 'block', 'lot_number', 'area', 'unit_measure', 'cash_price', 'status', 'whatsapp_url', 'project', 'location',
+    ]);
+});
+
+test('la landing ofrece el enlace oculto al catálogo público general', function () {
+    $this->get('/')->assertOk()
+        ->assertSee('data-all-lots-url="'.route('public.lots.index').'"', false)
+        ->assertSee('id="lot-results-all" hidden', false);
+});
+
+test('la página general valida precios y número de página', function () {
+    $this->getJson(route('public.lots.index', ['min_price' => 50000, 'max_price' => 30000]))
+        ->assertUnprocessable()->assertJsonValidationErrors('max_price');
+    $this->getJson(route('public.lots.index', ['page' => 0]))
+        ->assertUnprocessable()->assertJsonValidationErrors('page');
 });

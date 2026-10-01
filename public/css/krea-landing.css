@@ -52,7 +52,7 @@ body{overflow-x:clip}.svg-sprite{position:absolute;width:0;height:0;overflow:hid
 .lot-whatsapp{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding:12px 14px;border-radius:7px;background:var(--green);color:#fff;font-size:11px;font-weight:700;transition:background-color .25s ease,transform .25s ease}.lot-whatsapp:hover{background:#2d5a43;transform:translateY(-1px)}
 .lot-results-feedback:empty{display:none}.lot-results-message{padding:42px 25px;border:1px solid #dfe6da;border-radius:12px;background:#fff;text-align:center;box-shadow:0 10px 30px rgba(28,55,39,.05)}.lot-results-message h3{font-size:21px}.lot-results-message p{margin:10px auto 20px;color:var(--muted);font-size:13px}.lot-results-message .button{margin-top:2px}
 .search-panel button:disabled{cursor:wait;opacity:.72;transform:none;box-shadow:none}
-@media(min-width:1450px){.lot-results-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
 @media(max-width:900px){.lot-results-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lot-results{padding:55px 0 62px}}
 @media(max-width:600px){.lot-results{padding:44px 0 50px}.lot-results-heading{display:block;margin-bottom:23px}.lot-results-heading h2{font-size:29px}.lot-results-clear{margin-top:15px}.lot-results-grid{grid-template-columns:1fr}.lot-result-card{min-height:310px;padding:21px}}
 @media(max-width:520px){.search-panel{grid-template-columns:1fr}.search-panel label,.search-panel label:nth-child(2){padding:0 0 13px;border:0;border-bottom:1px solid var(--line)}.search-panel .button{width:100%}}
@@ -677,3 +677,5 @@ body{overflow-x:clip}.svg-sprite{position:absolute;width:0;height:0;overflow:hid
         transform:none!important;
     }
 }
+
+.inventory-lot-project{margin-top:14px;color:var(--green);font-size:14px;font-weight:750;overflow-wrap:anywhere}.inventory-lot-location{margin-top:4px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}.inventory-applied-filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px}.inventory-applied-filters span{padding:9px 13px;border:1px solid #dfe6db;border-radius:8px;background:#fff;color:var(--green);font-size:12px}.inventory-lot-card{overflow-wrap:anywhere}
