@@ -92,8 +92,21 @@
             <i class="fas fa-check-circle"></i>
         </button>
     @elseif ($pendingInvoice)
+        <a href="{{ route('admin.invoices.ticket', $pendingInvoice->id) }}" target="_blank"
+            class="btn btn-outline-primary btn-sm mr-2" data-toggle="tooltip"
+            title="Imprimir comprobante pendiente {{ $pendingInvoice->series }}-{{ $pendingInvoice->number }}">
+            <i class="fas fa-print"></i>
+        </a>
+
+        <button type="button" class="btn btn-outline-warning btn-sm recoverSunatInvoice mr-2"
+            data-url="{{ route('admin.invoices.recoverSunat', $pendingInvoice->id) }}"
+            data-label="{{ ($pendingInvoice->document_type === 'invoice' ? 'Factura' : 'Boleta') . ' ' . $pendingInvoice->series . '-' . $pendingInvoice->number }}"
+            data-toggle="tooltip" title="Consultar SUNAT y recuperar el mismo comprobante">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+
         <button type="button" class="btn btn-outline-warning btn-sm mr-2" disabled data-toggle="tooltip"
-            title="Comprobante pendiente {{ $pendingInvoice->series }}-{{ $pendingInvoice->number }}. Revise Respuesta API antes de reintentar.">
+            title="Pendiente de confirmación SUNAT. No genere otro comprobante para este pago.">
             <i class="fas fa-clock"></i>
         </button>
     @elseif ($canOperate)

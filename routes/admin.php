@@ -223,6 +223,11 @@ Route::get(
 )->name('invoices.apiLogs');
 
 Route::post(
+    'invoices/{invoice}/recover-sunat',
+    [InvoiceController::class, 'recoverSunat']
+)->name('invoices.recoverSunat');
+
+Route::post(
     'invoices/{payment}/generate',
     [InvoiceController::class, 'generate']
 )->name('invoices.generate');

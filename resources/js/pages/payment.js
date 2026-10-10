@@ -1330,6 +1330,72 @@ $('#paymentModal').on('shown.bs.modal', function () {
 });
 
 
+// =========================================================
+// RECUPERAR COMPROBANTE SUNAT PENDIENTE
+// =========================================================
+
+$(document).on('click', '.recoverSunatInvoice', function () {
+
+    const button = $(this);
+    const url = button.data('url');
+    const label = button.data('label') || 'comprobante pendiente';
+
+    Swal.fire({
+        icon: 'warning',
+        title: 'Consultar / Recuperar SUNAT',
+        text: `Primero se consultará si ${label} ya existe en SUNAT. Solo si SUNAT confirma que no existe, se reenviará exactamente el mismo comprobante.`,
+        showCancelButton: true,
+        confirmButtonText: 'Consultar / Recuperar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then(result => {
+
+        if (!result.isConfirmed) return;
+
+        const originalHtml = button.html();
+
+        button
+            .prop('disabled', true)
+            .html('<span class="spinner-border spinner-border-sm"></span>');
+
+        $.ajax({
+            url: url,
+            type: 'POST'
+        })
+        .done(function (response) {
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Comprobante conciliado',
+                text: response.message || 'SUNAT confirmó el comprobante.'
+            });
+
+            tablePayment.ajax.reload(null, false);
+
+        })
+        .fail(function (xhr) {
+
+            const response = xhr.responseJSON || {};
+            const pending = response.status === 'pending' || response.status === 'busy';
+
+            Swal.fire({
+                icon: pending ? 'warning' : 'error',
+                title: pending ? 'Comprobante aún pendiente' : 'No se pudo recuperar',
+                text: response.message || 'No se pudo completar la conciliación con SUNAT.'
+            });
+
+            tablePayment.ajax.reload(null, false);
+
+        })
+        .always(function () {
+            button.prop('disabled', false).html(originalHtml);
+        });
+
+    });
+
+});
+
+
 $(document).on('click', '.generateInvoice', function () {
 
     const paymentId = $(this).data('payment_id');
@@ -1930,13 +1996,41 @@ $(document).on('click', '#btnGenerateInvoice', function () {
 
             applyDocumentTypeUI();
 
+            const response = xhr.responseJSON || {};
+
+            if (response.pending) {
+
+                $('#generateInvoiceModal').modal('hide');
+                tablePayment.ajax.reload(null, false);
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Pendiente de validación SUNAT',
+                    text: response.message || 'El comprobante quedó reservado y pendiente de confirmación SUNAT.',
+                    showCancelButton: !!response.ticket_url,
+                    confirmButtonText: response.ticket_url ? 'Imprimir comprobante pendiente' : 'Entendido',
+                    cancelButtonText: 'Cerrar',
+                    reverseButtons: true
+                }).then(result => {
+                    if (result.isConfirmed && response.ticket_url) {
+                        window.open(
+                            response.ticket_url,
+                            '_blank',
+                            'width=420,height=800'
+                        );
+                    }
+                });
+
+                return;
+            }
+
             Swal.fire({
 
                 icon: 'error',
 
                 title: 'Error al emitir',
 
-                text: xhr.responseJSON?.message ||
+                text: response.message ||
                     'No se pudo emitir el comprobante.'
 
             });

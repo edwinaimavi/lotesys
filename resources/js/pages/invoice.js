@@ -155,6 +155,10 @@ document.addEventListener("DOMContentLoaded", function () {
         loadApiLogs($(this).data('url'));
     });
 
+    $('#tableInvoice').on('click', '.btn-recover-sunat', function () {
+        recoverPendingInvoice($(this));
+    });
+
     $('#apiAttemptSelect').on('change', function () {
         renderApiAttempt(apiAttempts[$(this).val()]);
     });
@@ -172,6 +176,56 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
 });
+
+function recoverPendingInvoice(button) {
+    const url = button.data('url');
+    const label = button.data('label') || 'comprobante pendiente';
+
+    Swal.fire({
+        icon: 'warning',
+        title: 'Consultar / Recuperar SUNAT',
+        html: `Primero se consultará si <strong>${escapeHtml(label)}</strong> ya existe en SUNAT. ` +
+            'Solo si SUNAT confirma que no existe, se reenviará exactamente el mismo comprobante con la misma serie y número.',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-sync-alt mr-1"></i> Consultar / Recuperar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then(result => {
+        if (!result.isConfirmed) return;
+
+        const originalHtml = button.html();
+        button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+
+        $.ajax({
+            url: url,
+            type: 'POST'
+        })
+        .done(function (response) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Comprobante conciliado',
+                text: response.message || 'SUNAT confirmó el comprobante.'
+            });
+
+            tableInvoice.ajax.reload(null, false);
+        })
+        .fail(function (xhr) {
+            const response = xhr.responseJSON || {};
+            const pending = response.status === 'pending' || response.status === 'busy';
+
+            Swal.fire({
+                icon: pending ? 'warning' : 'error',
+                title: pending ? 'Comprobante aún pendiente' : 'No se pudo recuperar',
+                text: response.message || 'No se pudo completar la conciliación con SUNAT.'
+            });
+
+            tableInvoice.ajax.reload(null, false);
+        })
+        .always(function () {
+            button.prop('disabled', false).html(originalHtml);
+        });
+    });
+}
 
 function loadApiLogs(url) {
     apiAttempts = [];
@@ -193,6 +247,8 @@ function loadApiLogs(url) {
 
             const actionLabels = {
                 send: 'Emisión',
+                status_check: 'Consulta SUNAT',
+                retry_send: 'Reintento seguro',
                 credit_note_send: 'Envío NC / SUNAT',
                 credit_note_pdf: 'PDF NC',
                 credit_note_xml: 'XML NC'
@@ -204,11 +260,20 @@ function loadApiLogs(url) {
 
             $('#apiAttemptSelect').html(options);
 
-            // Para notas de crédito, mostrar por defecto la respuesta que
-            // confirma SUNAT (/note/send), no la descarga auxiliar PDF/XML.
-            const preferredIndex = apiAttempts.findIndex(log =>
-                log.action === 'credit_note_send' || log.action === 'send'
-            );
+            // Mostrar por defecto la evidencia tributaria más relevante.
+            // En CPE pendientes/recuperados se prioriza el último reintento o
+            // consulta de estado; en NC se prioriza /note/send.
+            const preferredActions = invoice.document_type === 'credit_note'
+                ? ['credit_note_send']
+                : ['retry_send', 'status_check', 'send'];
+
+            let preferredIndex = -1;
+
+            for (const action of preferredActions) {
+                preferredIndex = apiAttempts.findIndex(log => log.action === action);
+                if (preferredIndex >= 0) break;
+            }
+
             const initialIndex = preferredIndex >= 0 ? preferredIndex : 0;
 
             $('#apiAttemptSelect').val(String(initialIndex));

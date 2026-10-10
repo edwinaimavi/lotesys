@@ -12,6 +12,7 @@ use App\Models\PaymentDetail;
 use App\Models\Company;
 
 use App\Services\ApisPeruService;
+use App\Services\InvoiceSunatRecoveryService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -159,7 +160,7 @@ class InvoiceController extends Controller
 
         if ($invoice->sunat_status === 'pending') {
             return "Existe un comprobante pendiente ({$label}). " .
-                'Revise la Respuesta API antes de volver a intentar para evitar duplicados.';
+                'Use la acción Consultar / Recuperar SUNAT. No genere otro comprobante para evitar duplicados.';
         }
 
         return "Este pago ya tiene un comprobante SUNAT aceptado ({$label}).";
@@ -604,7 +605,7 @@ class InvoiceController extends Controller
                         'class' => 'badge-success',
                     ],
                     'pending' => [
-                        'label' => 'Pendiente',
+                        'label' => 'Pendiente SUNAT',
                         'class' => 'badge-warning',
                     ],
                     'rejected' => [
@@ -659,9 +660,18 @@ class InvoiceController extends Controller
                     ? '<button type="button" class="btn btn-outline-info btn-sm btn-api-response" title="Ver respuesta API" data-toggle="tooltip" data-url="' . route('admin.invoices.apiLogs', $invoice->id) . '"><i class="fas fa-code"></i></button>'
                     : '<button type="button" class="btn btn-outline-secondary btn-sm" title="Sin respuesta API registrada" data-toggle="tooltip" disabled><i class="fas fa-code"></i></button>';
 
+                $pendingActions = '';
+
+                if (in_array($invoice->document_type, ['receipt', 'invoice'], true)
+                    && $invoice->sunat_status === 'pending') {
+                    $pendingActions .= '<a href="' . route('admin.invoices.ticket', $invoice->id) . '" target="_blank" class="btn btn-outline-primary btn-sm" title="Imprimir comprobante pendiente" data-toggle="tooltip"><i class="fas fa-print"></i></a>';
+                    $pendingActions .= '<button type="button" class="btn btn-outline-warning btn-sm btn-recover-sunat" title="Consultar / Recuperar SUNAT" data-toggle="tooltip" data-label="' . e(($invoice->document_type === 'invoice' ? 'Factura' : 'Boleta') . ' ' . $invoice->series . '-' . $invoice->number) . '" data-url="' . route('admin.invoices.recoverSunat', $invoice->id) . '"><i class="fas fa-sync-alt"></i></button>';
+                }
+
                 return '<div class="btn-group shadow-sm" role="group">'
                     . $pdfButton
                     . $xmlButton
+                    . $pendingActions
                     . $apiButton
                     . '</div>';
             })
@@ -706,6 +716,36 @@ class InvoiceController extends Controller
             ],
             'logs' => $logs,
         ]);
+    }
+
+    public function recoverSunat(
+        Invoice $invoice,
+        InvoiceSunatRecoveryService $recoveryService
+    ) {
+        $result = $recoveryService->recover(
+            $invoice,
+            false,
+            Auth::id()
+        );
+
+        $httpCode = (int) ($result['http_code'] ?? 200);
+        unset($result['http_code']);
+
+        $invoice->refresh();
+
+        if ($invoice->sunat_status === 'accepted') {
+            $result['pdf_url'] = $invoice->pdf_path
+                ? route('admin.invoices.downloadPdf', $invoice->id)
+                : null;
+            $result['xml_url'] = $invoice->xml_path
+                ? route('admin.invoices.downloadXml', $invoice->id)
+                : null;
+            $result['ticket_url'] = route('admin.invoices.ticket', $invoice->id);
+        } elseif ($invoice->sunat_status === 'pending') {
+            $result['ticket_url'] = route('admin.invoices.ticket', $invoice->id);
+        }
+
+        return response()->json($result, $httpCode);
     }
 
     public function downloadPdf($id)
@@ -1379,9 +1419,19 @@ class InvoiceController extends Controller
                     'updated_by' => Auth::id(),
                 ]);
 
+                $pendingLabel = ($invoice->document_type === 'invoice' ? 'Factura' : 'Boleta')
+                    . ' ' . $invoice->series . '-' . $invoice->number;
+
                 return response()->json([
                     'success' => false,
-                    'message' => $sunat['message'],
+                    'pending' => true,
+                    'status' => 'pending',
+                    'invoice_id' => $invoice->id,
+                    'document_label' => $pendingLabel,
+                    'message' => $sunat['message'] . ' ' .
+                        $pendingLabel . ' quedó reservado y pendiente de validación. ' .
+                        'No genere otro comprobante para este pago.',
+                    'ticket_url' => route('admin.invoices.ticket', $invoice->id),
                 ], 502);
             }
 

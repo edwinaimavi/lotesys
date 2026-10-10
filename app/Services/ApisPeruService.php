@@ -151,6 +151,69 @@ class ApisPeruService
 
     /*
     |--------------------------------------------------------------------------
+    | CONSULTAR ESTADO DE COMPROBANTE
+    |--------------------------------------------------------------------------
+    | Se usa antes de cualquier reintento para evitar duplicar un CPE que
+    | SUNAT pudo haber recibido aunque LoteSys haya perdido la respuesta.
+    */
+    public function getInvoiceStatus(
+        string $tipo,
+        string $serie,
+        string $numero,
+        string $ruc
+    ): array {
+        $endpoint = "{$this->baseUrl}/invoice/status";
+
+        try {
+            $this->useCompanyRuc($ruc);
+
+            $response = $this->client()
+                ->get($endpoint, [
+                    'tipo' => $tipo,
+                    'serie' => $serie,
+                    'numero' => $numero,
+                    'ruc' => $ruc,
+                ]);
+
+            if (! $response->successful()) {
+                return [
+                    'success' => false,
+                    'message' => 'Error APISPERU al consultar estado: ' . $response->body(),
+                    'endpoint' => $endpoint,
+                    'http_status' => $response->status(),
+                    'response_body' => $response->body(),
+                    'response_json' => $response->json(),
+                    'error_message' => $response->body(),
+                    'exception_message' => null,
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => $response->json(),
+                'endpoint' => $endpoint,
+                'http_status' => $response->status(),
+                'response_body' => $response->body(),
+                'response_json' => $response->json(),
+                'error_message' => null,
+                'exception_message' => null,
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'endpoint' => $endpoint,
+                'http_status' => null,
+                'response_body' => null,
+                'response_json' => null,
+                'error_message' => null,
+                'exception_message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | ENVIAR NOTA DE CRÉDITO / DÉBITO
     |--------------------------------------------------------------------------
     */

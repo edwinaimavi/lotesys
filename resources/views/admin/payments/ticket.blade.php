@@ -63,6 +63,15 @@
         .bold {
             font-weight: bold;
         }
+
+        .pending-sunat-box {
+            border: 1px solid #000;
+            padding: 7px 6px;
+            margin: 8px 0;
+            text-align: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -70,6 +79,9 @@
 
     @php
         $logo = null;
+
+        $isPendingSunat = in_array($invoice->document_type, ['receipt', 'invoice'], true)
+            && $invoice->sunat_status === 'pending';
 
         if ($invoice->company && $invoice->company->ruc == '20607752312') {
             $logo = asset('storage/logoem/LOGOKREA.png');
@@ -151,6 +163,16 @@
         </strong>
     </div>
 
+    @if ($isPendingSunat)
+        <div class="pending-sunat-box">
+            PENDIENTE DE VALIDACIÓN SUNAT<br>
+            <span style="font-weight: normal;">
+                Este comprobante se encuentra pendiente de confirmación por SUNAT.
+                La serie y el número ya fueron reservados y se mantendrán sin cambios.
+            </span>
+        </div>
+    @endif
+
     <div class="line"></div>
 
     Fecha:
@@ -193,8 +215,12 @@
         <div class="line"></div>
 
         <div class="center small-text">
-            Representación impresa del<br>
-            Comprobante Electrónico.
+            @if ($isPendingSunat)
+                Representación impresa pendiente de validación SUNAT.
+            @else
+                Representación impresa del<br>
+                Comprobante Electrónico.
+            @endif
         </div>
     @endif
 
@@ -205,8 +231,13 @@
     </div>
 
     <div class="center small-text">
-        Escanee el QR para verificar<br>
-        los datos principales del comprobante.
+        @if ($isPendingSunat)
+            QR con los datos del comprobante.<br>
+            Validación SUNAT pendiente.
+        @else
+            Escanee el QR para verificar<br>
+            los datos principales del comprobante.
+        @endif
     </div>
 
     <div class="line"></div>
@@ -215,6 +246,9 @@
         @if ($invoice->document_type == 'sale_note')
             Documento interno de control.<br>
             Gracias por su preferencia.
+        @elseif ($isPendingSunat)
+            Representación impresa provisional.<br>
+            Comprobante pendiente de confirmación por SUNAT.
         @else
             Representación impresa del<br>
             Comprobante Electrónico.<br>
