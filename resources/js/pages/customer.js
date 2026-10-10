@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", function () {
             { data: 'document_number' },
             { data: 'phone' },
             { data: 'email' },
-            { data: 'status_badge', orderable: false },
+            { data: 'status_badge', orderable: false, searchable: false },
             { data: 'actions', orderable: false, searchable: false }
         ],
         responsive: true,

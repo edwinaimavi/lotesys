@@ -14,8 +14,8 @@ Route::get('/proyectos/{project}/lotes', [LandingController::class, 'projectLots
 Route::get('/proyectos/{project}/availability-summary', [LandingController::class, 'availabilitySummary'])->name('public.projects.availability');
 Route::get('/proyectos/{project}/available-lots', [LandingController::class, 'availableProjectLots'])->name('public.projects.available-lots');
 
-Route::view('dashboard', 'dashboard')
-    ->middleware(['auth', 'verified'])
+Route::redirect('/dashboard', '/home')
+    ->middleware('auth')
     ->name('dashboard');
 
 Route::middleware(['auth'])->group(function () {
