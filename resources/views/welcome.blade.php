@@ -48,9 +48,20 @@
 <a class="skip-link" href="#contenido">Saltar al contenido</a>
 <header class="header"><div class="container nav-shell">
     <a class="brand" href="#inicio" aria-label="Grupo Krea, inicio"><img src="{{ asset(config('landing.logo')) }}" width="46" height="46" alt=""><span>GRUPO <strong>KREA</strong><small>PIENSA EN GRANDE</small></span></a>
-    <nav id="main-nav" aria-label="Navegación principal">
+    <nav id="main-nav" class="mobile-menu" aria-label="Navegación principal">
+        <div class="mobile-menu__header">
+            <a class="brand mobile-menu__brand" href="#inicio" aria-label="Grupo Krea, inicio"><img src="{{ asset(config('landing.logo')) }}" width="46" height="46" alt=""><span>GRUPO <strong>KREA</strong><small>PIENSA EN GRANDE</small></span></a>
+            <button class="mobile-menu__close" type="button" aria-label="Cerrar menú"><span aria-hidden="true"></span><span aria-hidden="true"></span></button>
+        </div>
+        <div class="mobile-menu__nav">
         <a href="#inicio"><span>01</span>Inicio</a><a href="#proyectos"><span>02</span>Proyectos</a><a href="#nosotros"><span>03</span>Quiénes somos</a><a href="#invertir"><span>04</span>Por qué invertir</a><a href="#blog"><span>05</span>Blog</a><a href="#contacto"><span>06</span>Contacto</a>
-        <div class="mobile-nav-footer"><strong>PIENSA EN GRANDE</strong><a href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">WhatsApp / contacto ↗</a></div>
+        </div>
+        <div class="mobile-menu__footer mobile-nav-footer">
+            <strong>PIENSA EN GRANDE</strong>
+            <span>WhatsApp</span>
+            <a class="mobile-menu__phone" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">{{ $phoneDisplay ?: 'Contacto' }}</a>
+            <a class="button mobile-menu__cta" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">Quiero más información <span aria-hidden="true">↗</span></a>
+        </div>
     </nav>
     <div class="nav-actions">
         <a class="nav-contact" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer"><span>WhatsApp</span><strong>{{ $phoneDisplay ?: 'Contacto' }}</strong></a>
