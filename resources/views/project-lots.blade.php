@@ -30,12 +30,13 @@
     <title>{{ $project->name }} | Lotes disponibles | Grupo Krea</title>
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     <link rel="stylesheet" href="{{ asset('css/krea-landing.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/krea-editorial.css') }}">
 </head>
 <body class="inventory-page">
 <div class="topline"><div class="container"><span>Construimos oportunidades. Creamos futuro.</span><a href="{{ $phoneHref ?: url('/#contacto') }}">{{ $phoneDisplay ?: 'Conversemos sobre tu próximo lote' }} ↗</a></div></div>
 <header class="inventory-header">
     <div class="container inventory-nav">
-        <a class="brand" href="{{ url('/') }}" aria-label="Grupo Krea, inicio"><img src="{{ asset(config('landing.logo')) }}" width="46" height="46" alt=""><span>GRUPO <strong>KREA</strong><small>DESARROLLAMOS TU FUTURO</small></span></a>
+        <a class="brand" href="{{ url('/') }}" aria-label="Grupo Krea, inicio"><img src="{{ asset(config('landing.logo')) }}" width="46" height="46" alt=""><span>GRUPO <strong>KREA</strong><small>PIENSA EN GRANDE</small></span></a>
         <div class="inventory-nav-actions"><a href="{{ url('/#proyectos') }}">Proyectos</a><a class="button button-small" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">Hablar con un asesor ↗</a></div>
     </div>
 </header>

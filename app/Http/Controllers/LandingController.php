@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Block;
 use App\Models\LandingSlider;
+use App\Models\LandingAboutSection;
 use App\Models\Lot;
 use App\Models\Project;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +24,7 @@ class LandingController extends Controller
     {
         $landingContacts = $this->contacts->footer();
         $primaryWhatsapp = $this->contacts->whatsapp();
+        $landingAbout = LandingAboutSection::query()->where('key', 'about')->where('is_active', true)->first();
         $heroSlides = LandingSlider::query()
             ->select([
                 'id',
@@ -129,7 +131,7 @@ class LandingController extends Controller
 
         $lotSearchPriceRanges = $this->commercialPriceRanges($this->availableLotsQuery());
 
-        return view('welcome', compact('heroSlides', 'homeProjects', 'availabilityProjects', 'lotSearchProjects', 'lotSearchLocations', 'lotSearchPriceRanges', 'landingContacts', 'primaryWhatsapp'));
+        return view('welcome', compact('heroSlides', 'homeProjects', 'availabilityProjects', 'lotSearchProjects', 'lotSearchLocations', 'lotSearchPriceRanges', 'landingContacts', 'primaryWhatsapp', 'landingAbout'));
     }
 
     public function availabilitySummary(Project $project): JsonResponse

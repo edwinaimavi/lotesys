@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\HolidayController;
 use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\LateFeeSettingController;
 use App\Http\Controllers\Admin\LandingSliderController;
+use App\Http\Controllers\Admin\LandingAboutController;
 
 use App\Http\Controllers\Admin\LotController;
 use App\Http\Controllers\Admin\PaymentController;
@@ -73,6 +74,9 @@ Route::post('landing-sliders', [LandingSliderController::class, 'store'])->name(
 Route::get('landing-sliders/{landingSlider}', [LandingSliderController::class, 'show'])->name('landing-sliders.show');
 Route::put('landing-sliders/{landingSlider}', [LandingSliderController::class, 'update'])->name('landing-sliders.update');
 Route::patch('landing-sliders/{landingSlider}/toggle', [LandingSliderController::class, 'toggle'])->name('landing-sliders.toggle');
+
+Route::get('landing-about', [LandingAboutController::class, 'index'])->name('landing-about.index');
+Route::put('landing-about', [LandingAboutController::class, 'update'])->name('landing-about.update');
 
 Route::get('project-web-profiles', [ProjectWebProfileController::class, 'index'])->name('project-web-profiles.index');
 Route::get('project-web-profiles/{project}', [ProjectWebProfileController::class, 'show'])->name('project-web-profiles.show');

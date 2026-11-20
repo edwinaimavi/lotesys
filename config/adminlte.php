@@ -340,6 +340,14 @@ return [
         ],
 
         [
+            'text' => 'Quiénes somos',
+            'url' => 'admin/landing-about',
+            'icon' => 'fas fa-users',
+            'icon_color' => 'success',
+            'can' => 'admin.landing-about.index',
+        ],
+
+        [
             'text' => 'Proyectos web',
             'url' => 'admin/project-web-profiles',
             'icon' => 'fas fa-building',

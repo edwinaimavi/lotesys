@@ -28,8 +28,10 @@
     <title>Grupo Krea | Un lugar para tu futuro</title>
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     <link rel="stylesheet" href="{{ asset('css/krea-landing.css') }}">
-    <script src="{{ asset('js/krea-landing.js') }}" defer></script>
+    <link rel="stylesheet" href="{{ asset('css/krea-landing-about.css') }}">
     <link rel="stylesheet" href="{{ asset('css/krea-customer-portal.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/krea-editorial.css') }}">
+    <script src="{{ asset('js/krea-landing.js') }}" defer></script>
     <script src="{{ asset('js/krea-customer-portal.js') }}" defer></script>
 </head>
 <body>
@@ -44,25 +46,17 @@
     <symbol id="icon-tiktok" viewBox="0 0 24 24"><path d="M14.2 3v11.4a4.5 4.5 0 1 1-3.7-4.4v3.2a1.5 1.5 0 1 0 .7 1.2V3h3Zm0 0c.5 2.8 2.1 4.4 4.8 4.8v3.1a8.5 8.5 0 0 1-4.8-1.6"/></symbol>
 </svg>
 <a class="skip-link" href="#contenido">Saltar al contenido</a>
-<div class="topline topline-premium" aria-label="Atención comercial">
-    <div class="container topline-shell">
-        <div class="topline-status">
-            <span class="topline-live-dot" aria-hidden="true"></span>
-            <span class="topline-label">ATENCIÓN COMERCIAL</span>
-        </div>
-        <p class="topline-message">Construimos oportunidades. <strong>Creamos futuro.</strong></p>
-        <a class="topline-contact" href="{{ $phoneHref ?: '#contacto' }}" aria-label="Contactar al {{ $phoneDisplay ?: 'equipo comercial' }}">
-            <span class="topline-contact-meta">WHATSAPP PRINCIPAL</span>
-            <strong>{{ $phoneDisplay ?: 'Conversemos sobre tu próximo lote' }}</strong>
-            <span class="topline-contact-arrow" aria-hidden="true">↗</span>
-        </a>
-    </div>
-</div>
 <header class="header"><div class="container nav-shell">
-    <a class="brand" href="#inicio" aria-label="Grupo Krea, inicio"><img src="{{ asset(config('landing.logo')) }}" width="46" height="46" alt=""><span>GRUPO <strong>KREA</strong><small>DESARROLLAMOS TU FUTURO</small></span></a>
-    <button class="menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="main-nav">☰</button>
-    <nav id="main-nav" aria-label="Navegación principal"><a href="#inicio">Inicio</a><a href="#proyectos">Proyectos</a><a href="#nosotros">Nosotros</a><a href="#invertir">Por qué invertir</a><a href="#blog">Blog</a><a href="#contacto">Contacto</a></nav>
-    <a class="button button-small nav-cta" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">Quiero más información ↗</a>
+    <a class="brand" href="#inicio" aria-label="Grupo Krea, inicio"><img src="{{ asset(config('landing.logo')) }}" width="46" height="46" alt=""><span>GRUPO <strong>KREA</strong><small>PIENSA EN GRANDE</small></span></a>
+    <nav id="main-nav" aria-label="Navegación principal">
+        <a href="#inicio"><span>01</span>Inicio</a><a href="#proyectos"><span>02</span>Proyectos</a><a href="#nosotros"><span>03</span>Quiénes somos</a><a href="#invertir"><span>04</span>Por qué invertir</a><a href="#blog"><span>05</span>Blog</a><a href="#contacto"><span>06</span>Contacto</a>
+        <div class="mobile-nav-footer"><strong>PIENSA EN GRANDE</strong><a href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">WhatsApp / contacto ↗</a></div>
+    </nav>
+    <div class="nav-actions">
+        <a class="nav-contact" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer"><span>WhatsApp</span><strong>{{ $phoneDisplay ?: 'Contacto' }}</strong></a>
+        <a class="button button-small nav-cta" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">Quiero más información <span aria-hidden="true">↗</span></a>
+        <button class="menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="main-nav"><span></span><span></span></button>
+    </div>
 </div></header>
 <main id="contenido">
 <section class="hero hero-slider" id="inicio" data-hero-slider aria-roledescription="carrusel" aria-label="Propuestas de Grupo Krea">
@@ -86,14 +80,13 @@
                         <p>{{ $slide['text'] }}</p>
                         @if(!empty($slide['button']) && !empty($slideUrl))<a class="button" href="{{ $slideUrl }}" @if($isExternal) target="_blank" rel="noopener noreferrer" @endif>{{ $slide['button'] }} <span aria-hidden="true">↗</span></a>@endif
                     </div>
-                    <div class="hero-note"><span></span>{{ str_replace('. ', ".\n", $slide['support'] ?? '') }}</div>
                 </div>
             </article>
         @endforeach
     </div>
     <div class="container hero-controls" aria-label="Controles del carrusel">
         <button type="button" class="hero-control" data-hero-prev aria-label="Ver slide anterior">←</button>
-        <span class="hero-counter" aria-live="polite"><strong data-hero-current>01</strong><i></i><span>{{ str_pad(count($heroSlides), 2, '0', STR_PAD_LEFT) }}</span></span>
+        <span class="hero-counter" aria-live="polite"><strong data-hero-current>01</strong><i><b data-hero-progress></b></i><span>{{ str_pad(count($heroSlides), 2, '0', STR_PAD_LEFT) }}</span></span>
         <button type="button" class="hero-control" data-hero-next aria-label="Ver slide siguiente">→</button>
     </div>
     <span class="image-caption">Imágenes referenciales</span>
@@ -133,6 +126,13 @@
         </svg></span><strong>Visión de futuro</strong><span class="benefit-description">Familias e inversionistas</span>
     </article>
 </section>
+<section class="brand-statement" aria-label="Piensa en grande">
+    <div class="container brand-statement-inner" data-reveal="up">
+        <span class="brand-statement-kicker">GRUPO KREA · IDENTIDAD</span>
+        <p aria-hidden="true"><span>PIENSA EN</span><strong>GRANDE</strong></p>
+        <small>CONSTRUCCIÓN · INGENIERÍA · DESARROLLO INMOBILIARIO</small>
+    </div>
+</section>
 <section class="lot-results" id="resultados-lotes" data-all-lots-url="{{ route('public.lots.index') }}" data-whatsapp="{{ $whatsapp }}" hidden aria-labelledby="lot-results-title">
     <div class="container">
         <div class="lot-results-heading"><div><span class="eyebrow">OPORTUNIDADES DISPONIBLES</span><h2 id="lot-results-title">Lotes disponibles para ti</h2><p id="lot-results-summary" role="status" aria-live="polite"></p></div><button class="lot-results-clear" id="reset-lot-search" type="button">Limpiar filtros</button></div>
@@ -141,7 +141,7 @@
         <div class="project-lot-explorer-more"><a class="button button-outline" id="lot-results-all" hidden>Ver todos los lotes disponibles ?</a></div>
     </div>
 </section>
-<section class="section container" id="proyectos">
+<section class="section container krea-projects" id="proyectos">
     <div class="section-heading" data-reveal="up"><div><span class="eyebrow">EL INICIO DE ALGO GRANDE</span><h2>Explora nuestros proyectos</h2></div><p>Hay un lugar que va contigo.<br>Comienza a descubrirlo aquí.</p></div>
     <p class="catalog-note">Conoce nuestras propuestas. Consulta ubicaciones, precios y disponibilidad con un asesor.</p>
     <div class="project-grid">@forelse($homeProjects as $project)
@@ -168,7 +168,7 @@
             </div>
         </article>
     @empty
-        <div class="projects-empty"><h3>Muy pronto conocerás nuestros nuevos proyectos.</h3><p>Estamos preparando nuevas oportunidades para ti. Contáctanos para conocer las opciones disponibles.</p><a class="button" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">Hablar con un asesor →</a></div>
+        <div class="projects-empty" data-reveal="up"><span class="eyebrow">MUY PRONTO</span><h3>Muy pronto conocerás<br>nuestros nuevos proyectos.</h3><p>Estamos preparando nuevas oportunidades para ti.<br>Contáctanos para conocer las opciones disponibles.</p><a class="button" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer">Hablar con un asesor ↗</a></div>
     @endforelse</div>
 </section>
 <section class="map-section" id="disponibilidad">
@@ -220,7 +220,7 @@
             <p>Antes de elegir un lote, conoce el proyecto, revisa su disponibilidad y organiza tu presupuesto con referencias simples.</p>
             <div class="invest-manifesto" aria-hidden="true"><span>NO SE TRATA SOLO DE COMPRAR</span><strong>se trata de<br><em>decidir mejor.</em></strong></div>
         </div>
-        <div class="invest-reasons" aria-label="Herramientas para evaluar tu inversión">
+        <div class="invest-reasons" data-reveal="up" aria-label="Herramientas para evaluar tu inversión">
             <article class="invest-reason">
                 <span class="invest-number">01</span>
                 <div><h3>Ubicación y entorno</h3><p>Explora dónde se encuentra cada proyecto y conoce su contexto antes de decidir.</p><button class="invest-link" type="button" data-invest-open="location">Explorar ubicación <span aria-hidden="true">↗</span></button></div>
@@ -240,7 +240,60 @@
         </div>
     </div>
 </section>
-<section class="container about" id="nosotros" data-reveal="up"><span class="eyebrow">SOMOS GRUPO KREA</span><h2>Creemos en el valor<br>de un nuevo comienzo.</h2><p>Acompañamos a familias e inversionistas a explorar oportunidades de terrenos. Queremos que tomes tu próximo paso con información clara, atención cercana y una visión de futuro.</p><div class="about-values"><span>01 <strong>Atención cercana</strong></span><span>02 <strong>Decisiones informadas</strong></span><span>03 <strong>Visión a largo plazo</strong></span></div></section>
+@if($landingAbout)
+<section class="about-krea-section" id="nosotros" data-reveal="up" aria-labelledby="about-krea-title">
+    <div class="container about-krea-shell">
+        <div class="about-krea-content">
+            <span class="eyebrow">{{ $landingAbout->eyebrow ?: 'SOMOS GRUPO KREA' }}</span>
+            <h2 id="about-krea-title">{{ $landingAbout->title }}</h2>
+            <p class="about-krea-lead">{!! nl2br(e($landingAbout->description)) !!}</p>
+        </div>
+        <div class="about-krea-companies" aria-label="Empresas que integran Grupo Krea">
+            <div class="about-krea-companies-heading">
+                <span>03 EMPRESAS</span>
+                <i aria-hidden="true"></i>
+            </div>
+            <p>MS KREA <b aria-hidden="true">·</b> FARJE INGENIEROS <b aria-hidden="true">·</b> BARRIO FINO</p>
+        </div>
+        <div class="about-krea-visual">
+            @if($landingAbout->imageUrl())
+                <img src="{{ $landingAbout->imageUrl() }}" alt="{{ $landingAbout->image_alt ?: $landingAbout->title }}" loading="lazy">
+            @else
+                <div class="about-krea-placeholder" aria-hidden="true"><strong>GRUPO KREA</strong><small>PIENSA EN GRANDE</small></div>
+            @endif
+            <div class="about-krea-brandmark">
+                <span>SAN MARTÍN · PERÚ</span>
+                <strong>GRUPO KREA</strong>
+                <small>CONSTRUCCIÓN · INGENIERÍA · DESARROLLO INMOBILIARIO</small>
+            </div>
+        </div>
+        <div class="about-krea-pillars">
+            <article class="about-krea-card" data-reveal="up">
+                <div class="about-krea-card-top">
+                    <span class="about-krea-card-number">01 / PROPÓSITO</span>
+                    <svg class="about-krea-card-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                        <circle cx="24" cy="24" r="14"/><circle cx="24" cy="24" r="7"/><circle cx="24" cy="24" r="2"/>
+                        <path d="M34 14 25 23M31 14h3v3"/>
+                    </svg>
+                </div>
+                <h3>{{ $landingAbout->mission_title }}</h3>
+                <p>{!! nl2br(e($landingAbout->mission_text)) !!}</p>
+            </article>
+            <article class="about-krea-card" data-reveal="up" style="--reveal-delay:90ms">
+                <div class="about-krea-card-top">
+                    <span class="about-krea-card-number">02 / PROYECCIÓN</span>
+                    <svg class="about-krea-card-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                        <path d="M8 34h32M11 29c5-1 8-5 12-5s6 3 10 1c2-1 4-3 6-7"/>
+                        <path d="m34 18 5-1-1 5M13 34V22M20 34V18M27 34V13"/>
+                    </svg>
+                </div>
+                <h3>{{ $landingAbout->vision_title }}</h3>
+                <p>{!! nl2br(e($landingAbout->vision_text)) !!}</p>
+            </article>
+        </div>
+    </div>
+</section>
+@endif
 @include('portal.landing')
 <section class="section container faq" id="preguntas"><div data-reveal="left"><span class="eyebrow">TE ACOMPAÑAMOS EN CADA PASO</span><h2>Preguntas frecuentes</h2><p>Tu tranquilidad comienza<br>con información clara.</p></div><div class="faq-list" data-reveal="up">
 @foreach([
@@ -252,17 +305,10 @@
     '¿Qué pasa si no puedo continuar con el pago?' => 'Comunícate con el equipo de atención para revisar tu caso. Las alternativas y posibles cargos dependen de las condiciones de tu contrato.'
 ] as $question => $answer)<details><summary>{{ $question }}<span aria-hidden="true">+</span></summary><p>{{ $answer }}</p></details>@endforeach
 </div></section>
-<section class="container journal" id="blog"><div class="section-heading"><div><span class="eyebrow">IDEAS PARA DECIDIR MEJOR</span><h2>Tu próxima inversión empieza aquí</h2></div><span class="journal-label">BLOG / GUÍA DE COMPRA</span></div><div class="guide-grid"><details><summary><span>01 / ELIGE CON INFORMACIÓN</span><h3>¿Qué revisar al elegir un terreno? ↗</h3></summary><p>Visita la ubicación, conoce los accesos y solicita información sobre servicios, documentación y condiciones de entrega del proyecto.</p></details><details><summary><span>02 / PLANIFICA TU FUTURO</span><h3>Prepara tu presupuesto de compra ↗</h3></summary><p>Considera la inicial, las cuotas y los gastos asociados. Pide una propuesta detallada para evaluar una alternativa acorde a tus posibilidades.</p></details><details><summary><span>03 / DA EL SIGUIENTE PASO</span><h3>Aprovecha tu visita al proyecto ↗</h3></summary><p>Prepara tus preguntas, recorre el entorno y solicita el plano del lote. Compara la información de tu visita con la propuesta comercial.</p></details></div></section>
+<section class="container journal" id="blog" data-reveal="up"><div class="section-heading"><div><span class="eyebrow">IDEAS PARA DECIDIR MEJOR</span><h2>Tu próxima inversión empieza aquí</h2></div><span class="journal-label">BLOG / GUÍA DE COMPRA</span></div><div class="guide-grid"><details><summary><span>01 / ELIGE CON INFORMACIÓN</span><h3>¿Qué revisar al elegir un terreno? ↗</h3></summary><p>Visita la ubicación, conoce los accesos y solicita información sobre servicios, documentación y condiciones de entrega del proyecto.</p></details><details><summary><span>02 / PLANIFICA TU FUTURO</span><h3>Prepara tu presupuesto de compra ↗</h3></summary><p>Considera la inicial, las cuotas y los gastos asociados. Pide una propuesta detallada para evaluar una alternativa acorde a tus posibilidades.</p></details><details><summary><span>03 / DA EL SIGUIENTE PASO</span><h3>Aprovecha tu visita al proyecto ↗</h3></summary><p>Prepara tus preguntas, recorre el entorno y solicita el plano del lote. Compara la información de tu visita con la propuesta comercial.</p></details></div></section>
 <section class="container contact" id="contacto" data-reveal="up"><div><span class="eyebrow">CONVERSEMOS SOBRE TU FUTURO</span><h2>¿No encuentras tu respuesta?</h2><p>Hablemos por WhatsApp. Estamos para acompañarte.</p></div><a class="button icon-button" href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer"><svg aria-hidden="true"><use href="#icon-whatsapp"></use></svg>Hablemos por WhatsApp ↗</a></section>
 </main>
 <footer class="footer footer-premium">
-    <div class="footer-motion-strip" aria-hidden="true">
-        <div class="footer-motion-track">
-            <span>VIVIR MEJOR</span><i>✦</i><span>INVERTIR CON VISIÓN</span><i>✦</i><span>CRECER CON FUTURO</span><i>✦</i><span>UN LUGAR PARA TI</span><i>✦</i>
-            <span>VIVIR MEJOR</span><i>✦</i><span>INVERTIR CON VISIÓN</span><i>✦</i><span>CRECER CON FUTURO</span><i>✦</i><span>UN LUGAR PARA TI</span><i>✦</i>
-        </div>
-    </div>
-
     <div class="container footer-callout" data-reveal="up">
         <div class="footer-callout-copy">
             <span class="footer-kicker">HABLEMOS DE TU PRÓXIMO PASO</span>
@@ -279,7 +325,7 @@
         <div class="footer-brand-column">
             <a class="brand footer-brand" href="#inicio" aria-label="Grupo Krea, volver al inicio">
                 <img src="{{ asset(config('landing.logo')) }}" width="54" height="54" alt="">
-                <span>GRUPO <strong>KREA</strong><small>DESARROLLAMOS TU FUTURO</small></span>
+                <span>GRUPO <strong>KREA</strong><small>PIENSA EN GRANDE</small></span>
             </a>
             <p class="footer-brand-copy">Un lugar para vivir.<br>Una oportunidad para crecer.</p>
             <div class="footer-brand-values" aria-label="Nuestros pilares"><span>VIVIR</span><i></i><span>INVERTIR</span><i></i><span>CRECER</span></div>
@@ -289,7 +335,7 @@
             <span class="footer-column-number">01</span>
             <h3>Explora</h3>
             <a href="#proyectos">Nuestros proyectos <span>↗</span></a>
-            <a href="#nosotros">Nosotros <span>↗</span></a>
+            <a href="#nosotros">Quiénes somos <span>↗</span></a>
             <a href="#invertir">Por qué invertir <span>↗</span></a>
         </nav>
 
@@ -306,10 +352,6 @@
             <h3>Hablemos</h3>
             @include('landing.contact-footer')
         </div>
-    </div>
-
-    <div class="container footer-signature" aria-hidden="true">
-        <span>GRUPO</span><strong>KREA</strong><i>DESARROLLAMOS TU FUTURO</i>
     </div>
 
     <div class="container footer-bottom">

@@ -21,6 +21,7 @@
         const previousButton = heroSlider.querySelector('[data-hero-prev]');
         const nextButton = heroSlider.querySelector('[data-hero-next]');
         const currentLabel = heroSlider.querySelector('[data-hero-current]');
+        const progress = heroSlider.querySelector('[data-hero-progress]');
         let currentSlide = 0;
         let autoplayTimer = null;
         let autoplayStopped = false;
@@ -35,14 +36,21 @@
                 slide.inert = !active;
             });
             currentLabel.textContent = String(currentSlide + 1).padStart(2, '0');
+            heroSlider.classList.remove('is-progressing');
+            if (!reducedMotion && !autoplayStopped && progress) {
+                void progress.offsetWidth;
+                heroSlider.classList.add('is-progressing');
+            }
         };
         const stopAutoplay = () => {
             if (autoplayTimer) window.clearInterval(autoplayTimer);
             autoplayTimer = null;
+            heroSlider.classList.remove('is-progressing');
         };
         const startAutoplay = () => {
             stopAutoplay();
             if (reducedMotion || autoplayStopped || document.hidden || slides.length < 2) return;
+            heroSlider.classList.add('is-progressing');
             autoplayTimer = window.setInterval(() => showSlide(currentSlide + 1), 6500);
         };
         const useManualControl = direction => {
@@ -78,16 +86,49 @@
     }
     const menu = document.querySelector('.menu-toggle');
     const nav = document.querySelector('#main-nav');
-    const closeMenu = () => { nav.classList.remove('is-open'); menu.setAttribute('aria-expanded', 'false'); menu.setAttribute('aria-label', 'Abrir menú'); };
+    const header = document.querySelector('.header');
+    const closeMenu = () => {
+        nav.classList.remove('is-open');
+        header.classList.remove('is-menu-open');
+        document.documentElement.classList.remove('nav-open');
+        menu.setAttribute('aria-expanded', 'false');
+        menu.setAttribute('aria-label', 'Abrir menú');
+    };
     menu.addEventListener('click', () => {
         const open = menu.getAttribute('aria-expanded') !== 'true';
         menu.setAttribute('aria-expanded', String(open));
         menu.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
         nav.classList.toggle('is-open', open);
+        header.classList.toggle('is-menu-open', open);
+        document.documentElement.classList.toggle('nav-open', open);
     });
     nav.querySelectorAll('a').forEach(link => link.addEventListener('click', closeMenu));
     document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMenu(); });
     document.addEventListener('click', event => { if (!event.target.closest('.header')) closeMenu(); });
+    let headerFrame = 0;
+    const updateHeader = () => {
+        header.classList.toggle('is-scrolled', window.scrollY > 30);
+        headerFrame = 0;
+    };
+    window.addEventListener('scroll', () => {
+        if (!headerFrame) headerFrame = window.requestAnimationFrame(updateHeader);
+    }, { passive: true });
+    updateHeader();
+    if ('IntersectionObserver' in window) {
+        const navLinks = [...nav.querySelectorAll('a[href^="#"]')];
+        const navSections = navLinks.map(link => document.querySelector(link.getAttribute('href'))).filter(Boolean);
+        const navObserver = new IntersectionObserver(entries => {
+            const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+            if (!visible) return;
+            navLinks.forEach(link => {
+                const active = link.getAttribute('href') === `#${visible.target.id}`;
+                link.classList.toggle('is-active', active);
+                if (active) link.setAttribute('aria-current', 'location');
+                else link.removeAttribute('aria-current');
+            });
+        }, { rootMargin: '-20% 0px -65% 0px', threshold: [0, .2] });
+        navSections.forEach(section => navObserver.observe(section));
+    }
     const form = document.querySelector('#lot-search');
     const locationSelect = form.querySelector('[name="location"]');
     const projectSelect = form.querySelector('[name="project_id"]');
