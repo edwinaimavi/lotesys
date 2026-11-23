@@ -56,7 +56,9 @@ html,body{overflow-x:clip}
 .header .nav-cta:hover{background:#285540;box-shadow:none;transform:none}
 .header .nav-cta:hover>span{transform:translateX(3px)}
 .mobile-nav-footer{display:none}
-.mobile-menu__header,.mobile-menu__nav{display:contents}
+.mobile-menu__header{display:none}
+.mobile-menu__nav{display:contents}
+.header .nav-shell>nav .mobile-menu__nav>a>span{display:none}
 .mobile-menu__close{display:none}
 .menu-toggle{display:none}
 

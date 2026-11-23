@@ -264,7 +264,26 @@
                 <span>03 EMPRESAS</span>
                 <i aria-hidden="true"></i>
             </div>
-            <p>MS KREA <b aria-hidden="true">·</b> FARJE INGENIEROS <b aria-hidden="true">·</b> BARRIO FINO</p>
+            <div class="about-krea-company-list" role="list">
+                <div class="about-krea-company-brand" role="listitem">
+                    <div class="about-krea-company-brand__logo">
+                        <img src="{{ asset('storage/logoem/LOGOKREA.png') }}" alt="MS KREA" loading="lazy">
+                    </div>
+                    <span class="about-krea-company-brand__name">MS KREA</span>
+                </div>
+                <div class="about-krea-company-brand" role="listitem">
+                    <div class="about-krea-company-brand__logo">
+                        <img src="{{ asset('storage/logoem/LOGOFARAJE.jpeg') }}" alt="Farje Ingenieros" loading="lazy">
+                    </div>
+                    <span class="about-krea-company-brand__name">FARJE INGENIEROS</span>
+                </div>
+                <div class="about-krea-company-brand" role="listitem">
+                    <div class="about-krea-company-brand__logo">
+                        <img src="{{ asset('storage/logoem/BARRIOFINO.png') }}" alt="Barrio Fino" loading="lazy">
+                    </div>
+                    <span class="about-krea-company-brand__name">BARRIO FINO</span>
+                </div>
+            </div>
         </div>
         <div class="about-krea-visual">
             @if($landingAbout->imageUrl())
